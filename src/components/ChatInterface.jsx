@@ -1,10 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Layers, Plus, FileText, CheckCircle2, MessageSquare, ExternalLink, X, Paperclip, BrainCircuit, RefreshCw } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Layers, Plus, FileText, CheckCircle2, Compass, ExternalLink, X, Paperclip, BrainCircuit, RefreshCw, Mail, UserCheck, ShieldAlert } from 'lucide-react';
 import { RecommendationCard } from './RecommendationCard';
 import { sendChatMessage } from '../services/api';
 
 export const ChatInterface = () => {
+  // Mode States
+  const [userRole, setUserRole] = useState('business'); // 'business' | 'director'
   const [chatMode, setChatMode] = useState('guided'); // 'guided' | 'open'
+  
+  // Chat & Session States
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -21,13 +25,17 @@ export const ChatInterface = () => {
   const [thinkingLogs, setThinkingLogs] = useState([]);
   const [sessionId, setSessionId] = useState('session-' + Math.floor(Math.random() * 1000));
   
+  // Director Inbox Tickets State
+  const [directorInbox, setDirectorInbox] = useState([]);
+
   // PDF Modal State
   const [showPdfModal, setShowPdfModal] = useState(false);
+  const [activePdfUrl, setActivePdfModalUrl] = useState('/doc.pdf');
 
   // File Input Ref
   const fileInputRef = useRef(null);
 
-  // State for Open-Ended Multi-Turn Decision Tree
+  // State for Custom Requirement Discovery Flow
   const [openStep, setOpenStep] = useState(0);
 
   // Real-time tracking state for Sidebar
@@ -72,15 +80,15 @@ export const ChatInterface = () => {
         {
           id: Date.now(),
           sender: 'AI',
-          text: 'Hi! How may I assist you today?',
+          text: 'Hi! How may I assist you today with your custom solution requirements?',
           type: 'TEXT'
         }
       ]);
       setRequirements({
-        domain: 'Custom Open Requirement',
-        scope: 'Interactive Discovery...',
+        domain: 'Custom Requirement Discovery',
+        scope: 'Interactive Analysis...',
         ingestion: 'Conversational / Document Ingestion',
-        scale: 'Dynamic Analysis'
+        scale: 'Dynamic Evaluation'
       });
     } else {
       setMessages([
@@ -121,16 +129,9 @@ export const ChatInterface = () => {
           ingestion: file ? `Document (${file.name})` : 'Real-time Stream'
         }));
 
-        if (file) {
-          return {
-            type: 'TEXT',
-            message: `📄 Requirement document "${file.name}" received! Do you need detection before or after the payment is executed?`
-          };
-        }
-
         return {
           type: 'TEXT',
-          message: 'Do you need detection before or after the payment is executed?'
+          message: 'Should the system automatically reject the payment based on transaction patterns and historical customer behavior?'
         };
       } 
       
@@ -141,65 +142,53 @@ export const ChatInterface = () => {
     }
 
     if (openStep === 1) {
-      setOpenStep(2);
-      setRequirements(prev => ({
-        ...prev,
-        ingestion: 'Real-time Payment Stream'
-      }));
-      return {
-        type: 'TEXT',
-        message: 'Should the system automatically reject the payment?'
-      };
-    }
-
-    if (openStep === 2) {
-      setOpenStep(3);
-      setRequirements(prev => ({
-        ...prev,
-        scale: 'Sub-Second Latency / Hold Rules'
-      }));
-      return {
-        type: 'TEXT',
-        message: 'Should the decision use transaction patterns and historical customer behaviour?'
-      };
-    }
-
-    if (openStep === 3) {
       setLoading(true);
       setThinkingLogs([]);
 
       setLoadingStep('Analyzing conversation context & intent...');
       setThinkingLogs(prev => [...prev, '🧠 Extracting functional parameters: [Real-time Stream, Pre-Execution Hold, Behavioral Rules]']);
-      await delay(1500);
+      await delay(1200);
 
       setLoadingStep('Searching product catalog...');
       setThinkingLogs(prev => [...prev, '🔍 Querying product catalog for matching capabilities...']);
+      await delay(1500);
+
+      setLoadingStep('Evaluating DUCO Engine...');
+      setThinkingLogs(prev => [...prev, '⚠️ Evaluated DUCO Engine == 50% match (Lacks real-time stream pre-holding capabilities)']);
       await delay(1800);
 
-      setLoadingStep('Evaluating Model X-Recon...');
-      setThinkingLogs(prev => [...prev, '⚠️ Evaluated Model X-Recon: Match Score 50% (Lacks pre-execution holding capabilities)']);
-      await delay(2000);
-
-      setLoadingStep('Evaluating PayGrid Core...');
-      setThinkingLogs(prev => [...prev, '⚠️ Evaluated PayGrid Core: Match Score 60% (Lacks behavioral fraud detection engine)']);
-      await delay(2000);
+      setLoadingStep('Evaluating TLM Platform...');
+      setThinkingLogs(prev => [...prev, '⚠️ Evaluated TLM Platform == 68% match (Lacks sub-second behavioral fraud intervention)']);
+      await delay(1800);
 
       setLoadingStep('Determining capability gap...');
       setThinkingLogs(prev => [...prev, '❌ No 100% direct product match found in existing portfolio.']);
-      await delay(1800);
+      await delay(1500);
 
       setLoadingStep('Generating Technical Solution Blueprint...');
       setThinkingLogs(prev => [...prev, '📄 Generating custom Technical Requirement Blueprint & contacting Solution Director...']);
-      await delay(2000);
+      await delay(1800);
 
       setLoading(false);
       setLoadingStep('');
       setThinkingLogs([]);
 
+      // Create Ticket for Director Portal
+      const newTicket = {
+        id: 'REQ-' + Math.floor(1000 + Math.random() * 9000),
+        businessUser: 'Rahul Sharma (Senior Business Analyst)',
+        sessionId: sessionId,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', Today',
+        requirementDomain: requirements.domain || 'Real-Time Scam Intervention',
+        summary: 'Pre-execution payment hold with behavioral analytics & real-time fraud intervention rules.',
+        pdfUrl: '/doc.pdf'
+      };
+
+      setDirectorInbox(prev => [newTicket, ...prev]);
+
       return {
         type: 'OPEN_OUTCOME',
-        message: 'No existing product matches this capability. A new technical requirement has been identified. Here is a document with proposed technology docs and solution blueprint.',
-        docUrl: '/doc.pdf',
+        message: 'No existing product matches this capability. A new technical requirement ticket and solution blueprint have been generated and dispatched to the Engineering & Solution Director.',
         contact: {
           name: 'Neha Baglkot',
           role: 'Director',
@@ -249,11 +238,11 @@ export const ChatInterface = () => {
       return {
         type: 'QUESTION',
         message: 'What is your expected daily record processing volume?',
-        options: ['Standard (<100k)', 'High Volume (>1 Million)', 'Enterprise Ultra Scale']
+        options: ['Standard (<100k)', 'High Volume (>1 Million)', 'Enterprise Ultra Scale (>1 Billion)']
       };
     }
 
-    if (lower.includes('standard') || lower.includes('high volume') || lower.includes('enterprise ultra')) {
+    if (lower.includes('standard') || lower.includes('high volume') || lower.includes('enterprise ultra') || lower.includes('billion')) {
       const finalScale = text;
       const finalScope = requirements.scope !== 'Pending...' ? requirements.scope : 'Selected Datasets';
       const finalIngestion = requirements.ingestion !== 'Pending...' ? requirements.ingestion : 'Configured Ingestion Source';
@@ -261,14 +250,14 @@ export const ChatInterface = () => {
       setRequirements(prev => ({ ...prev, scale: finalScale }));
       return {
         type: 'RECOMMENDATION',
-        message: `Analysis Complete! Based on your target scope (${finalScope}), ingestion pipeline (${finalIngestion}), and scale (${finalScale}), Pair DB is identified as the optimal product match.`,
+        message: `Based on your requirements, I recommend the Pair Enterprise Reconciliation Platform...`,
         recommendation: {
-          product: 'Pair DB Enterprise Platform',
+          product: 'Pair Enterprise Platform',
           fitScore: 98,
           reasons: [
-            `Tailored specifically for ${finalScope} automated reconciliation rules.`,
-            `Direct compatibility with ${finalIngestion} data architecture with active exception handling.`,
-            `Optimized processing engine designed to sustain ${finalScale} record throughput without latency.`
+            `Engineered specifically for high-throughput multi-source reconciliation (${finalScope}).`,
+            `Real-time automated exception matching and ledger mapping for ${finalIngestion}.`,
+            `Sub-second query response with full audit trail compliance designed for ${finalScale}.`
           ]
         }
       };
@@ -304,24 +293,53 @@ export const ChatInterface = () => {
         sender: 'AI',
         text: responsePayload.message,
         type: responsePayload.type,
-        docUrl: responsePayload.docUrl,
         contact: responsePayload.contact
       };
       setMessages((prev) => [...prev, aiMsg]);
     } else {
-      // 🚀 GUIDED MODE - Integrated with Python Flask API flow.json
+      // GUIDED MODE
       setLoading(true);
-      setLoadingStep('Consulting workflow engine...');
-      
+      setThinkingLogs([]);
+
+      const isFinalScaleStep = text.toLowerCase().includes('billion') || 
+                               text.toLowerCase().includes('100k') || 
+                               text.toLowerCase().includes('million') || 
+                               text.toLowerCase().includes('enterprise ultra');
+
+      if (isFinalScaleStep) {
+        setLoadingStep('Scanning Banking Product Catalog...');
+        setThinkingLogs(prev => [...prev, '🧠 Analyzing Reconciliation Criteria: [Ultra High Volume, Multi-Source Ingestion]']);
+        await delay(1200);
+
+        setLoadingStep('Evaluating DUCO Matching Engine...');
+        setThinkingLogs(prev => [...prev, '⚠️ Evaluated DUCO Engine == 50% match (Lower performance on enterprise ultra-scale)']);
+        await delay(1500);
+
+        setLoadingStep('Evaluating TLM Reconciliation Engine...');
+        setThinkingLogs(prev => [...prev, '⚠️ Evaluated TLM Platform == 68% match (Requires complex legacy mapping scripts)']);
+        await delay(1500);
+
+        setLoadingStep('Evaluating Pair Platform...');
+        setThinkingLogs(prev => [...prev, '🎯 Pair Enterprise Platform == 98% match (Optimal fit for enterprise throughput)']);
+        await delay(1200);
+
+        setLoadingStep('Generating Final Product Recommendation...');
+        await delay(1000);
+      } else {
+        setLoadingStep('Consulting workflow engine...');
+        await delay(800);
+      }
+
       const backendResponse = await sendChatMessage(sessionId, text);
       setLoading(false);
+      setLoadingStep('');
+      setThinkingLogs([]);
 
       if (backendResponse && backendResponse.type !== 'ERROR') {
         const botReply = backendResponse.message || backendResponse.reply;
         const currentNode = backendResponse.currentNode || '';
         const options = backendResponse.options || [];
 
-        // Dynamic Sidebar Tracking based on Flow Nodes
         if (text.includes('1.') || text.toLowerCase().includes('reconciliation')) {
           setRequirements(prev => ({ ...prev, domain: 'Reconciliation Engine' }));
         } else if (requirements.domain !== 'Awaiting Selection...' && requirements.scope === 'Pending...') {
@@ -332,26 +350,28 @@ export const ChatInterface = () => {
           setRequirements(prev => ({ ...prev, scale: text }));
         }
 
-        // Check if node is Recommendation
-        if (currentNode === 'recommendation' || backendResponse.type === 'RECOMMENDATION' || botReply?.includes('recommend') || botReply?.includes('Pair DB')) {
+        if (currentNode === 'recommendation' || backendResponse.type === 'RECOMMENDATION' || botReply?.includes('recommend') || botReply?.includes('Pair DB') || botReply?.includes('Pair')) {
+          const recObj = backendResponse.recommendation || {
+            product: 'Pair Enterprise Platform',
+            fitScore: 98,
+            reasons: [
+              'Engineered specifically for high-throughput multi-source reconciliation.',
+              'Real-time automated exception matching and ledger mapping.',
+              'Sub-second query response with full audit trail compliance.'
+            ]
+          };
+
+          recObj.product = 'Pair Enterprise Platform';
+
           const aiMsg = {
             id: Date.now() + 1,
             sender: 'AI',
-            text: botReply,
+            text: 'Based on your requirements, I recommend the Pair Enterprise Reconciliation Platform...',
             type: 'RECOMMENDATION',
-            recommendation: backendResponse.recommendation || {
-              product: 'Pair DB Enterprise Platform',
-              fitScore: 98,
-              reasons: [
-                'Engineered specifically for high-throughput multi-source reconciliation.',
-                'Real-time automated exception matching and ledger mapping.',
-                'Sub-second query response with full audit trail compliance.'
-              ]
-            }
+            recommendation: recObj
           };
           setMessages((prev) => [...prev, aiMsg]);
         } else {
-          // Standard node question / response from flow.json
           const aiMsg = {
             id: Date.now() + 1,
             sender: 'AI',
@@ -362,7 +382,6 @@ export const ChatInterface = () => {
           setMessages((prev) => [...prev, aiMsg]);
         }
       } else {
-        // Fallback to local flow logic if backend is unreachable
         const fallbackResponse = handleLocalDemoFlow(text);
         const aiMsg = {
           id: Date.now() + 1,
@@ -391,7 +410,7 @@ export const ChatInterface = () => {
           </div>
           <button 
             onClick={() => handleSwitchMode(chatMode)}
-            className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors"
+            className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors cursor-pointer"
             title="Reset Conversation"
           >
             <Plus className="w-4 h-4" />
@@ -435,7 +454,7 @@ export const ChatInterface = () => {
                   if(chatMode === 'open') handleSwitchMode('guided');
                   handleSend("1. Reconciliation Engine");
                 }}
-                className="w-full text-left p-2.5 bg-slate-900/40 hover:bg-indigo-600/10 border border-slate-800/80 hover:border-indigo-500/30 rounded-lg text-xs text-slate-300 transition-all flex items-center gap-2 group"
+                className="w-full text-left p-2.5 bg-slate-900/40 hover:bg-indigo-600/10 border border-slate-800/80 hover:border-indigo-500/30 rounded-lg text-xs text-slate-300 transition-all flex items-center gap-2 group cursor-pointer"
               >
                 <FileText className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform" />
                 <span>Start Reconciliation Flow</span>
@@ -449,260 +468,337 @@ export const ChatInterface = () => {
         </div>
       </aside>
 
-      {/* 2. MAIN CHAT CONTAINER */}
+      {/* 2. MAIN CONTAINER */}
       <main className="flex-1 flex flex-col h-full relative">
+        {/* HEADER WITH VIEW ROLE SWITCHER */}
         <header className="h-14 border-b border-slate-800/80 bg-slate-950/40 backdrop-blur-md px-6 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             <span className="text-xs font-medium text-slate-300">Active Session: {sessionId}</span>
           </div>
 
+          {/* RIGHT TOP ROLE SWITCHER */}
           <div className="flex items-center gap-3">
-            <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+            <div className="flex bg-slate-900/90 p-1 rounded-xl border border-slate-800 shadow-inner">
               <button
-                onClick={() => handleSwitchMode('guided')}
-                className={`px-3 py-1 text-xs font-medium rounded-lg transition ${
-                  chatMode === 'guided' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                onClick={() => setUserRole('business')}
+                className={`px-3 py-1 text-xs font-medium rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
+                  userRole === 'business' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Guided Flow
+                <UserCheck className="w-3.5 h-3.5" />
+                Business User
               </button>
+              
               <button
-                onClick={() => handleSwitchMode('open')}
-                className={`px-3 py-1 text-xs font-medium rounded-lg transition flex items-center gap-1.5 ${
-                  chatMode === 'open' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                onClick={() => setUserRole('director')}
+                className={`px-3 py-1 text-xs font-medium rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
+                  userRole === 'director' ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
                 }`}
               >
-                <MessageSquare className="w-3 h-3" />
-                Open Minded Conversation
+                <Mail className="w-3.5 h-3.5" />
+                Director Portal
+                {directorInbox.length > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full ml-0.5">
+                    {directorInbox.length}
+                  </span>
+                )}
               </button>
             </div>
+
+            {userRole === 'business' && (
+              <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+                <button
+                  onClick={() => handleSwitchMode('guided')}
+                  className={`px-3 py-1 text-xs font-medium rounded-lg transition cursor-pointer ${
+                    chatMode === 'guided' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Guided Flow
+                </button>
+                <button
+                  onClick={() => handleSwitchMode('open')}
+                  className={`px-3 py-1 text-xs font-medium rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
+                    chatMode === 'open' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Compass className="w-3.5 h-3.5" />
+                  Custom Requirement Discovery
+                </button>
+              </div>
+            )}
           </div>
         </header>
 
-        {/* Chat Feed */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex gap-3 max-w-3xl ${
-                msg.sender === 'USER' ? 'ml-auto flex-row-reverse' : ''
-              }`}
-            >
-              <div
-                className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-md ${
-                  msg.sender === 'USER'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-slate-800 border border-slate-700 text-indigo-400'
-                }`}
-              >
-                {msg.sender === 'USER' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+        {/* CONDITIONALLY RENDER DIRECTOR PORTAL OR BUSINESS CHAT */}
+        {userRole === 'director' ? (
+          /* ==================== DIRECTOR PORTAL VIEW ==================== */
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#0b0f19]">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div>
+                <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-amber-500" /> Technical Director Mailbox & Requirement Blueprints
+                </h2>
+                <p className="text-xs text-slate-400 mt-1">Review customized technical requirements generated from business user interactions.</p>
               </div>
+              <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 text-xs px-3 py-1 rounded-lg font-mono">
+                {directorInbox.length} New Proposals
+              </span>
+            </div>
 
-              <div className="space-y-3">
-                {/* Standard text bubble */}
-                {msg.text && msg.type !== 'OPEN_OUTCOME' && (
-                  <div
-                    className={`p-4 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
-                      msg.sender === 'USER'
-                        ? 'bg-indigo-600 text-white rounded-tr-none'
-                        : 'bg-slate-900 border border-slate-800/90 text-slate-200 rounded-tl-none shadow-lg'
-                    }`}
-                  >
-                    {msg.text}
-                  </div>
-                )}
-
-                {/* Option Buttons */}
-               {/* Option Buttons */}
-                {chatMode === 'guided' && msg.options && (
-                  <div className="flex flex-wrap gap-2 pt-1">
-                    {msg.options.map((option, idx) => {
-                      // Direct string ho ya object, label safe extraction
-                      const labelText = typeof option === 'object' ? (option.label || option.value) : option;
-                      const sendValue = typeof option === 'object' ? (option.value || option.label) : option;
-
-                      return (
-                        <button
-                          key={idx}
-                          onClick={() => handleSend(sendValue)}
-                          className="text-xs bg-indigo-500/10 hover:bg-indigo-600 hover:text-white border border-indigo-500/30 text-indigo-300 px-3 py-1.5 rounded-full transition-all flex items-center gap-1 shadow-sm"
-                        >
-                          <CheckCircle2 className="w-3 h-3" />
-                          {labelText}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Recommendation Card */}
-                {msg.recommendation && (
-                  <RecommendationCard recommendation={msg.recommendation} />
-                )}
-
-                {/* OPEN_OUTCOME Card */}
-                {msg.type === 'OPEN_OUTCOME' && (
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-slate-200 space-y-4 shadow-2xl">
-                    <p className="text-sm font-medium text-amber-400 leading-relaxed">
-                      ⚠️ {msg.text}
-                    </p>
-
-                    <div className="bg-slate-950 border border-indigo-500/30 rounded-xl p-4 space-y-3">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2.5 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/20">
-                          <FileText className="w-6 h-6" />
+            {directorInbox.length === 0 ? (
+              <div className="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-12 text-center text-slate-500 space-y-3">
+                <Mail className="w-10 h-10 mx-auto opacity-30 text-slate-400" />
+                <p className="text-sm">No new requirement tickets received yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-4 max-w-4xl mx-auto">
+                {directorInbox.map((ticket) => (
+                  <div key={ticket.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl hover:border-slate-700 transition-all">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[11px] px-2.5 py-0.5 rounded-md font-mono font-bold">
+                            {ticket.id}
+                          </span>
+                          <span className="text-xs text-slate-400">{ticket.timestamp}</span>
                         </div>
-                        <div>
-                          <h4 className="text-sm font-semibold text-white">Technology Requirement Blueprint Generated</h4>
-                          <p className="text-xs text-slate-400">Sent automatically to Solution Director for review.</p>
-                        </div>
+                        <h3 className="font-semibold text-white mt-2 text-base">
+                          {ticket.requirementDomain}
+                        </h3>
+                        <p className="text-xs text-indigo-300 mt-0.5">
+                          Submitted by: <span className="font-medium text-slate-200">{ticket.businessUser}</span> ({ticket.sessionId})
+                        </p>
                       </div>
 
                       <button
-                        type="button"
-                        onClick={() => setShowPdfModal(true)}
-                        className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium px-4 py-2.5 rounded-xl transition shadow-lg cursor-pointer"
+                        onClick={() => {
+                          setActivePdfModalUrl(ticket.pdfUrl);
+                          setShowPdfModal(true);
+                        }}
+                        className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium px-4 py-2.5 rounded-xl transition shadow-md cursor-pointer"
                       >
-                        <span>View Technical Proposal PDF</span>
-                        <ExternalLink className="w-3.5 h-3.5" />
+                        <FileText className="w-4 h-4" />
+                        <span>View Technical Blueprint</span>
+                        <ExternalLink className="w-3 h-3 ml-0.5" />
                       </button>
                     </div>
 
-                    <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 space-y-3 text-xs">
-                      <p className="text-slate-300 font-medium">To take this architectural solution forward, please connect with:</p>
-                      <div className="space-y-1 text-slate-400">
-                        <p className="text-white font-semibold text-sm">
-                          {msg.contact.name} <span className="text-xs font-normal text-indigo-400">({msg.contact.role})</span>
-                        </p>
-                        <p>Phone: {msg.contact.phone}</p>
-                        <p>Email: {msg.contact.email}</p>
-                      </div>
-
-                      <a
-                        href={`msteams://teams.microsoft.com/l/chat/0/0?users=${msg.contact.email}`}
-                        className="inline-flex items-center gap-2 bg-[#5B5FC7] hover:bg-[#4F52B2] text-white px-4 py-2.5 rounded-xl text-xs font-medium transition shadow-md mt-2"
-                      >
-                        <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
-                          <path d="M19.5 3h-15A1.5 1.5 0 003 4.5v15A1.5 1.5 0 004.5 21h15a1.5 1.5 0 001.5-1.5v-15A1.5 1.5 0 0019.5 3zm-7 13.5h-5v-1.5h5v1.5zm3-4h-8v-1.5h8v1.5zm0-4h-8V7h8v1.5z" />
-                        </svg>
-                        Chat on Microsoft Teams
-                      </a>
+                    <div className="bg-slate-950 border border-slate-800 p-3.5 rounded-xl text-xs text-slate-300 leading-relaxed">
+                      <strong className="text-amber-400 block mb-1">Requirement Summary:</strong>
+                      {ticket.summary}
                     </div>
                   </div>
-                )}
+                ))}
               </div>
-            </div>
-          ))}
+            )}
+          </div>
+        ) : (
+          /* ==================== BUSINESS USER CHAT VIEW ==================== */
+          <div className="flex-1 flex flex-col h-full overflow-hidden">
+            {/* Chat Feed */}
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`flex gap-3 max-w-3xl ${
+                    msg.sender === 'USER' ? 'ml-auto flex-row-reverse' : ''
+                  }`}
+                >
+                  <div
+                    className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-md ${
+                      msg.sender === 'USER'
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-slate-800 border border-slate-700 text-indigo-400'
+                    }`}
+                  >
+                    {msg.sender === 'USER' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
+                  </div>
 
-          {/* REALTIME VISUAL AI THINKING STREAM */}
-          {loading && (
-            <div className="bg-slate-900/90 border border-indigo-500/30 rounded-2xl p-4 space-y-3 max-w-2xl shadow-xl animate-in fade-in duration-300">
-              <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold uppercase tracking-wider">
-                <BrainCircuit className="w-4 h-4 animate-pulse" />
-                <span>AI Reasoning Engine Active</span>
-              </div>
+                  <div className="space-y-3">
+                    {/* Standard text bubble */}
+                    {msg.text && msg.type !== 'OPEN_OUTCOME' && (
+                      <div
+                        className={`p-4 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+                          msg.sender === 'USER'
+                            ? 'bg-indigo-600 text-white rounded-tr-none'
+                            : 'bg-slate-900 border border-slate-800/90 text-slate-200 rounded-tl-none shadow-lg'
+                        }`}
+                      >
+                        {msg.text}
+                      </div>
+                    )}
 
-              {thinkingLogs.length > 0 && (
-                <div className="space-y-2 text-xs font-mono bg-slate-950/70 p-3 rounded-xl border border-slate-800">
-                  {thinkingLogs.map((log, index) => (
-                    <div key={index} className="text-slate-300 leading-relaxed flex items-start gap-1.5">
-                      <span>{log}</span>
+                    {/* Option Buttons */}
+                    {chatMode === 'guided' && msg.options && (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {msg.options.map((option, idx) => {
+                          const labelText = typeof option === 'object' ? (option.label || option.value) : option;
+                          const sendValue = typeof option === 'object' ? (option.value || option.label) : option;
+
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => handleSend(sendValue)}
+                              className="text-xs bg-indigo-500/10 hover:bg-indigo-600 hover:text-white border border-indigo-500/30 text-indigo-300 px-3 py-1.5 rounded-full transition-all flex items-center gap-1 shadow-sm cursor-pointer"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              {labelText}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Recommendation Card */}
+                    {msg.recommendation && (
+                      <RecommendationCard recommendation={msg.recommendation} />
+                    )}
+
+                    {/* OPEN_OUTCOME Card for Business User */}
+                    {msg.type === 'OPEN_OUTCOME' && (
+                      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-slate-200 space-y-4 shadow-2xl">
+                        <p className="text-sm font-medium text-amber-400 leading-relaxed flex items-start gap-2">
+                          <ShieldAlert className="w-5 h-5 shrink-0 text-amber-400 mt-0.5" />
+                          <span>{msg.text}</span>
+                        </p>
+
+                        <div className="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 space-y-3 text-xs">
+                          <p className="text-slate-300 font-medium">To onboard or discuss this requirement further, please get in touch with:</p>
+                          <div className="space-y-1 text-slate-400">
+                            <p className="text-white font-semibold text-sm">
+                              {msg.contact.name} <span className="text-xs font-normal text-indigo-400">({msg.contact.role})</span>
+                            </p>
+                            <p>Phone: {msg.contact.phone}</p>
+                            <p>Email: {msg.contact.email}</p>
+                          </div>
+
+                          <a
+                            href={`msteams://teams.microsoft.com/l/chat/0/0?users=${msg.contact.email}`}
+                            className="inline-flex items-center gap-2 bg-[#5B5FC7] hover:bg-[#4F52B2] text-white px-4 py-2.5 rounded-xl text-xs font-medium transition shadow-md mt-2"
+                          >
+                            <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                              <path d="M19.5 3h-15A1.5 1.5 0 003 4.5v15A1.5 1.5 0 004.5 21h15a1.5 1.5 0 001.5-1.5v-15A1.5 1.5 0 0019.5 3zm-7 13.5h-5v-1.5h5v1.5zm3-4h-8v-1.5h8v1.5zm0-4h-8V7h8v1.5z" />
+                            </svg>
+                            Chat on Microsoft Teams
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+              {/* REALTIME VISUAL AI THINKING STREAM */}
+              {loading && (
+                <div className="bg-slate-900/90 border border-indigo-500/30 rounded-2xl p-4 space-y-3 max-w-2xl shadow-xl animate-in fade-in duration-300 relative">
+                  <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold uppercase tracking-wider">
+                    <BrainCircuit className="w-4 h-4 animate-pulse" />
+                    <span>AI Reasoning Engine Active</span>
+                  </div>
+
+                  {thinkingLogs.length > 0 && (
+                    <div className="space-y-2 text-xs font-mono bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+                      {thinkingLogs.map((log, index) => (
+                        <div key={index} className="text-slate-300 leading-relaxed flex items-start gap-1.5">
+                          <span>{log}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+
+                  <div className="flex gap-2 items-center text-slate-400 text-xs pt-1">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+                    <span className="font-medium text-slate-200">{loadingStep}</span>
+                  </div>
                 </div>
               )}
 
-              <div className="flex gap-2 items-center text-slate-400 text-xs pt-1">
-                <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-400" />
-                <span className="font-medium text-slate-200">{loadingStep}</span>
-              </div>
+              <div ref={chatEndRef} />
             </div>
-          )}
 
-          <div ref={chatEndRef} />
-        </div>
+            {/* Bottom Input Area */}
+            <div className="p-4 border-t border-slate-800/80 bg-slate-950/60 backdrop-blur-md space-y-2">
+              {selectedFile && (
+                <div className="max-w-4xl mx-auto flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/30 px-3 py-1.5 rounded-lg text-xs text-indigo-300 w-fit">
+                  <FileText className="w-3.5 h-3.5 text-indigo-400" />
+                  <span className="font-medium truncate max-w-xs">{selectedFile.name}</span>
+                  <button
+                    onClick={removeSelectedFile}
+                    className="hover:bg-indigo-500/20 rounded p-0.5 text-indigo-400 hover:text-white transition"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
 
-        {/* Bottom Input Area */}
-        <div className="p-4 border-t border-slate-800/80 bg-slate-950/60 backdrop-blur-md space-y-2">
-          {selectedFile && (
-            <div className="max-w-4xl mx-auto flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/30 px-3 py-1.5 rounded-lg text-xs text-indigo-300 w-fit">
-              <FileText className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="font-medium truncate max-w-xs">{selectedFile.name}</span>
-              <button
-                onClick={removeSelectedFile}
-                className="hover:bg-indigo-500/20 rounded p-0.5 text-indigo-400 hover:text-white transition"
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSend();
+                }}
+                className="max-w-4xl mx-auto relative flex items-center"
               >
-                <X className="w-3.5 h-3.5" />
-              </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileChange}
+                  accept=".pdf,.doc,.docx,.txt"
+                  className="hidden"
+                />
+
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute left-2 p-2 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-lg transition-all cursor-pointer"
+                  title="Attach requirement document (.pdf, .doc, .txt)"
+                >
+                  <Paperclip className="w-4 h-4" />
+                </button>
+
+                <input
+                  type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  placeholder={
+                    chatMode === 'guided'
+                      ? 'Select the requirement or type requirement...'
+                      : 'Describe custom requirement or upload document...'
+                  }
+                  className="w-full bg-slate-900 text-slate-100 placeholder-slate-500 text-sm rounded-xl pl-10 pr-12 py-3 border border-slate-800 focus:outline-none focus:border-indigo-500/80 transition-all shadow-inner"
+                />
+
+                <button
+                  type="submit"
+                  disabled={(!inputMessage.trim() && !selectedFile) || loading}
+                  className="absolute right-2 p-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-lg transition-all cursor-pointer"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </form>
             </div>
-          )}
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSend();
-            }}
-            className="max-w-4xl mx-auto relative flex items-center"
-          >
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileChange}
-              accept=".pdf,.doc,.docx,.txt"
-              className="hidden"
-            />
-
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="absolute left-2 p-2 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-lg transition-all"
-              title="Attach requirement document (.pdf, .doc, .txt)"
-            >
-              <Paperclip className="w-4 h-4" />
-            </button>
-
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              placeholder={
-                chatMode === 'guided'
-                  ? 'Select the requirement or type requirement...'
-                  : 'Describe requirement or upload document...'
-              }
-              className="w-full bg-slate-900 text-slate-100 placeholder-slate-500 text-sm rounded-xl pl-10 pr-12 py-3 border border-slate-800 focus:outline-none focus:border-indigo-500/80 transition-all shadow-inner"
-            />
-
-            <button
-              type="submit"
-              disabled={(!inputMessage.trim() && !selectedFile) || loading}
-              className="absolute right-2 p-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-lg transition-all"
-            >
-              <Send className="w-4 h-4" />
-            </button>
-          </form>
-        </div>
+          </div>
+        )}
       </main>
 
-      {/* PDF MODAL */}
+      {/* PDF MODAL (ONLY FOR DIRECTOR) */}
       {showPdfModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
             <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
               <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                <FileText className="w-4 h-4 text-indigo-400" /> Real Time Payment Scam Intervention Blueprint (doc.pdf)
+                <FileText className="w-4 h-4 text-indigo-400" /> Technical Requirement Solution Blueprint (PDF)
               </h3>
               <button
                 onClick={() => setShowPdfModal(false)}
-                className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded-lg transition"
+                className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded-lg transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
             <div className="flex-1 bg-slate-950">
               <iframe
-                src="/doc.pdf"
+                src={activePdfUrl}
                 title="Document Preview"
                 className="w-full h-full border-none"
               />
