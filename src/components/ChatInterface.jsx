@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, RefreshCw, Layers, Plus, FileText, CheckCircle2, MessageSquare, ExternalLink, X, Paperclip, BrainCircuit } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Layers, Plus, FileText, CheckCircle2, MessageSquare, ExternalLink, X, Paperclip, BrainCircuit, RefreshCw } from 'lucide-react';
 import { RecommendationCard } from './RecommendationCard';
 import { sendChatMessage } from '../services/api';
 
@@ -263,7 +263,7 @@ export const ChatInterface = () => {
         type: 'RECOMMENDATION',
         message: `Analysis Complete! Based on your target scope (${finalScope}), ingestion pipeline (${finalIngestion}), and scale (${finalScale}), Pair DB is identified as the optimal product match.`,
         recommendation: {
-          product: 'Pair DB',
+          product: 'Pair DB Enterprise Platform',
           fitScore: 98,
           reasons: [
             `Tailored specifically for ${finalScope} automated reconciliation rules.`,
@@ -271,24 +271,6 @@ export const ChatInterface = () => {
             `Optimized processing engine designed to sustain ${finalScale} record throughput without latency.`
           ]
         }
-      };
-    }
-
-    if (lower.includes('payments') || lower.includes('2.')) {
-      setRequirements(prev => ({ ...prev, domain: 'Payments Processing (Demo)' }));
-      return {
-        type: 'QUESTION',
-        message: '[Demo Mode] Payments domain selected. For full walkthrough, please switch to Reconciliation Flow or Open Mode.',
-        options: ['1. Reconciliation Engine']
-      };
-    }
-
-    if (lower.includes('data') || lower.includes('3.')) {
-      setRequirements(prev => ({ ...prev, domain: 'Data & Reporting (Demo)' }));
-      return {
-        type: 'QUESTION',
-        message: '[Demo Mode] Data Reporting domain selected. For full walkthrough, please switch to Reconciliation Flow or Open Mode.',
-        options: ['1. Reconciliation Engine']
       };
     }
 
@@ -327,22 +309,71 @@ export const ChatInterface = () => {
       };
       setMessages((prev) => [...prev, aiMsg]);
     } else {
+      // 🚀 GUIDED MODE - Integrated with Python Flask API flow.json
       setLoading(true);
-      const data = await sendChatMessage(sessionId, text);
+      setLoadingStep('Consulting workflow engine...');
+      
+      const backendResponse = await sendChatMessage(sessionId, text);
       setLoading(false);
 
-      let responsePayload = data && data.type !== 'ERROR' ? data : handleLocalDemoFlow(text);
+      if (backendResponse && backendResponse.type !== 'ERROR') {
+        const botReply = backendResponse.message || backendResponse.reply;
+        const currentNode = backendResponse.currentNode || '';
+        const options = backendResponse.options || [];
 
-      const aiMsg = {
-        id: Date.now() + 1,
-        sender: 'AI',
-        text: responsePayload.message,
-        type: responsePayload.type,
-        options: responsePayload.options,
-        recommendation: responsePayload.recommendation
-      };
+        // Dynamic Sidebar Tracking based on Flow Nodes
+        if (text.includes('1.') || text.toLowerCase().includes('reconciliation')) {
+          setRequirements(prev => ({ ...prev, domain: 'Reconciliation Engine' }));
+        } else if (requirements.domain !== 'Awaiting Selection...' && requirements.scope === 'Pending...') {
+          setRequirements(prev => ({ ...prev, scope: text }));
+        } else if (requirements.scope !== 'Pending...' && requirements.ingestion === 'Pending...') {
+          setRequirements(prev => ({ ...prev, ingestion: text }));
+        } else if (requirements.ingestion !== 'Pending...' && requirements.scale === 'Pending...') {
+          setRequirements(prev => ({ ...prev, scale: text }));
+        }
 
-      setMessages((prev) => [...prev, aiMsg]);
+        // Check if node is Recommendation
+        if (currentNode === 'recommendation' || backendResponse.type === 'RECOMMENDATION' || botReply?.includes('recommend') || botReply?.includes('Pair DB')) {
+          const aiMsg = {
+            id: Date.now() + 1,
+            sender: 'AI',
+            text: botReply,
+            type: 'RECOMMENDATION',
+            recommendation: backendResponse.recommendation || {
+              product: 'Pair DB Enterprise Platform',
+              fitScore: 98,
+              reasons: [
+                'Engineered specifically for high-throughput multi-source reconciliation.',
+                'Real-time automated exception matching and ledger mapping.',
+                'Sub-second query response with full audit trail compliance.'
+              ]
+            }
+          };
+          setMessages((prev) => [...prev, aiMsg]);
+        } else {
+          // Standard node question / response from flow.json
+          const aiMsg = {
+            id: Date.now() + 1,
+            sender: 'AI',
+            text: botReply,
+            type: 'QUESTION',
+            options: options.length > 0 ? options : undefined
+          };
+          setMessages((prev) => [...prev, aiMsg]);
+        }
+      } else {
+        // Fallback to local flow logic if backend is unreachable
+        const fallbackResponse = handleLocalDemoFlow(text);
+        const aiMsg = {
+          id: Date.now() + 1,
+          sender: 'AI',
+          text: fallbackResponse.message,
+          type: fallbackResponse.type,
+          options: fallbackResponse.options,
+          recommendation: fallbackResponse.recommendation
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+      }
     }
   };
 
@@ -483,18 +514,25 @@ export const ChatInterface = () => {
                 )}
 
                 {/* Option Buttons */}
+               {/* Option Buttons */}
                 {chatMode === 'guided' && msg.options && (
                   <div className="flex flex-wrap gap-2 pt-1">
-                    {msg.options.map((option, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => handleSend(option)}
-                        className="text-xs bg-indigo-500/10 hover:bg-indigo-600 hover:text-white border border-indigo-500/30 text-indigo-300 px-3 py-1.5 rounded-full transition-all flex items-center gap-1 shadow-sm"
-                      >
-                        <CheckCircle2 className="w-3 h-3" />
-                        {option}
-                      </button>
-                    ))}
+                    {msg.options.map((option, idx) => {
+                      // Direct string ho ya object, label safe extraction
+                      const labelText = typeof option === 'object' ? (option.label || option.value) : option;
+                      const sendValue = typeof option === 'object' ? (option.value || option.label) : option;
+
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => handleSend(sendValue)}
+                          className="text-xs bg-indigo-500/10 hover:bg-indigo-600 hover:text-white border border-indigo-500/30 text-indigo-300 px-3 py-1.5 rounded-full transition-all flex items-center gap-1 shadow-sm"
+                        >
+                          <CheckCircle2 className="w-3 h-3" />
+                          {labelText}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -630,7 +668,7 @@ export const ChatInterface = () => {
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder={
                 chatMode === 'guided'
-                  ? 'Select Reconciliation Engine or type requirement...'
+                  ? 'Select the requirement or type requirement...'
                   : 'Describe requirement or upload document...'
               }
               className="w-full bg-slate-900 text-slate-100 placeholder-slate-500 text-sm rounded-xl pl-10 pr-12 py-3 border border-slate-800 focus:outline-none focus:border-indigo-500/80 transition-all shadow-inner"

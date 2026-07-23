@@ -1,0 +1,40 @@
+{
+  "startNode": "greeting",
+  "nodes": {
+    "greeting": {
+      "botMessage": "Hi there! 👋 Welcome to TechBridge AI. Please select a Banking Domain to begin configuring your solution.",
+      "expectedResponses": {
+        "reconcile": "scope_select",
+        "1. reconciliation engine": "scope_select",
+        "payments": "scope_select"
+      }
+    },
+    "domain_select": {
+      "botMessage": "Great! What would you like to reconcile today?",
+      "expectedResponses": {
+        "reconcile": "scope_select",
+        "data": "scope_select"
+      }
+    },
+    "scope_select": {
+      "botMessage": "What kind of data datasets would you like to reconcile?",
+      "expectedResponses": {
+        "front office": "volume_select",
+        "back office": "volume_select",
+        "position": "volume_select"
+      }
+    },
+    "volume_select": {
+      "botMessage": "Approximately how many records do you reconcile in a single run?",
+      "expectedResponses": {
+        "1 billion": "recommendation",
+        "million": "recommendation",
+        "100k": "recommendation"
+      }
+    },
+    "recommendation": {
+      "botMessage": "Based on your requirements, I recommend the Pair DB Enterprise Reconciliation Platform...",
+      "expectedResponses": {}
+    }
+  }
+}

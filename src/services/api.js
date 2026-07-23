@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8080/api';
+// 🚀 Changed from 8080/api to Flask's Port 5000
+const API_BASE_URL = 'http://localhost:5000';
 
 export const sendChatMessage = async (sessionId, message) => {
   try {
@@ -11,11 +12,11 @@ export const sendChatMessage = async (sessionId, message) => {
     return response.data;
   } catch (error) {
     console.error("API Call Error:", error);
-    // Mock response fallback for UI testing when backend is offline
+    // Fallback indicator
     return {
       sessionId,
       type: "ERROR",
-      message: "Unable to connect to Spring Boot backend. Please check if server is running on port 8080."
+      message: "Unable to connect to Flask backend. Please check if 'python app.py' is running on port 5000."
     };
   }
 };
