@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, RefreshCw, Shield, Layers, Plus, FileText, CheckCircle2, MessageSquare, ExternalLink, X } from 'lucide-react';
+import { Send, Bot, User, Sparkles, RefreshCw, Layers, Plus, FileText, CheckCircle2, MessageSquare, ExternalLink, X, Paperclip, BrainCircuit } from 'lucide-react';
 import { RecommendationCard } from './RecommendationCard';
 import { sendChatMessage } from '../services/api';
 
@@ -9,18 +9,23 @@ export const ChatInterface = () => {
     {
       id: 1,
       sender: 'AI',
-      text: 'Hi there! 👋 Welcome to TechBridge AI. How can I assist you today?',
-      type: 'GREETING',
-      options: ["I'm good, let's explore products!", "Ready to configure business requirements."]
+      text: 'Hi there! 👋 Welcome to TechBridge AI. Please select a Banking Domain to begin configuring your solution.',
+      type: 'QUESTION',
+      options: ['1. Reconciliation Engine', '2. Payments Processing (Demo)', '3. Data & Regulatory Reporting (Demo)']
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
+  const [thinkingLogs, setThinkingLogs] = useState([]);
   const [sessionId, setSessionId] = useState('session-' + Math.floor(Math.random() * 1000));
   
   // PDF Modal State
   const [showPdfModal, setShowPdfModal] = useState(false);
+
+  // File Input Ref
+  const fileInputRef = useRef(null);
 
   // State for Open-Ended Multi-Turn Decision Tree
   const [openStep, setOpenStep] = useState(0);
@@ -37,29 +42,44 @@ export const ChatInterface = () => {
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading, loadingStep]);
+  }, [messages, loading, loadingStep, thinkingLogs]);
 
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  // Reset & Clear Chat when Switching Modes
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSwitchMode = (mode) => {
     setChatMode(mode);
     setSessionId('session-' + Math.floor(Math.random() * 1000));
     setOpenStep(0);
+    setThinkingLogs([]);
+    removeSelectedFile();
 
     if (mode === 'open') {
       setMessages([
         {
           id: Date.now(),
           sender: 'AI',
-          text: '⚡ Switched to Open-Minded Mode. Describe your custom banking or tech requirement to get started.',
+          text: 'Hi! How may I assist you today?',
           type: 'TEXT'
         }
       ]);
       setRequirements({
         domain: 'Custom Open Requirement',
         scope: 'Interactive Discovery...',
-        ingestion: 'Conversational Input',
+        ingestion: 'Conversational / Document Ingestion',
         scale: 'Dynamic Analysis'
       });
     } else {
@@ -69,7 +89,7 @@ export const ChatInterface = () => {
           sender: 'AI',
           text: 'Hi there! 👋 Welcome to TechBridge Guided Mode. Select a domain or choose an option to begin.',
           type: 'QUESTION',
-          options: ['1. Reconciliation Engine', '2. Payments Processing', '3. Data & Regulatory Reporting']
+          options: ['1. Reconciliation Engine', '2. Payments Processing (Demo)', '3. Data & Regulatory Reporting (Demo)']
         }
       ]);
       setRequirements({
@@ -81,28 +101,43 @@ export const ChatInterface = () => {
     }
   };
 
-  // Open-Minded Multi-Turn Conversation Logic
-  const handleOpenEndedFlow = async (text) => {
-    const lower = text.toLowerCase();
+  const handleOpenEndedFlow = async (text, file) => {
+    const lowerInput = text.toLowerCase().trim();
 
     if (openStep === 0) {
-      if (lower.includes('scam') || lower.includes('stop') || lower.includes('fraud') || lower.includes('payment')) {
+      if (
+        lowerInput.includes('scam') || 
+        lowerInput.includes('stop') || 
+        lowerInput.includes('fraud') || 
+        lowerInput.includes('money') || 
+        lowerInput.includes('payment') || 
+        file
+      ) {
         setOpenStep(1);
         setRequirements(prev => ({
           ...prev,
           domain: 'Real-Time Scam Intervention',
-          scope: 'Pre-Execution Detection'
+          scope: file ? `Parsed from ${file.name}` : 'Pre-Execution Detection',
+          ingestion: file ? `Document (${file.name})` : 'Real-time Stream'
         }));
+
+        if (file) {
+          return {
+            type: 'TEXT',
+            message: `📄 Requirement document "${file.name}" received! Do you need detection before or after the payment is executed?`
+          };
+        }
+
         return {
           type: 'TEXT',
           message: 'Do you need detection before or after the payment is executed?'
         };
-      } else {
-        return {
-          type: 'TEXT',
-          message: 'Hello! Please specify your exact functional requirement (for example: scam/fraud prevention, custom risk rules, or real-time payment controls).'
-        };
-      }
+      } 
+      
+      return {
+        type: 'TEXT',
+        message: 'Hello! Please describe your functional requirement or upload a requirement document to get started.'
+      };
     }
 
     if (openStep === 1) {
@@ -131,33 +166,45 @@ export const ChatInterface = () => {
 
     if (openStep === 3) {
       setLoading(true);
-      setLoadingStep('Analyzing requirements & intent...');
-      await delay(1000);
+      setThinkingLogs([]);
 
-      setLoadingStep('Scanning product catalog...');
-      await delay(1000);
+      setLoadingStep('Analyzing conversation context & intent...');
+      setThinkingLogs(prev => [...prev, '🧠 Extracting functional parameters: [Real-time Stream, Pre-Execution Hold, Behavioral Rules]']);
+      await delay(1500);
 
-      setLoadingStep('Evaluating matches: Found Model X-Recon (50% match)...');
-      await delay(1200);
+      setLoadingStep('Searching product catalog...');
+      setThinkingLogs(prev => [...prev, '🔍 Querying product catalog for matching capabilities...']);
+      await delay(1800);
 
-      setLoadingStep('Evaluating matches: Found PayGrid Core (60% match)...');
-      await delay(1200);
+      setLoadingStep('Evaluating Model X-Recon...');
+      setThinkingLogs(prev => [...prev, '⚠️ Evaluated Model X-Recon: Match Score 50% (Lacks pre-execution holding capabilities)']);
+      await delay(2000);
 
-      setLoadingStep('No 100% direct match found. Generating Technical Requirement Blueprint...');
-      await delay(1200);
+      setLoadingStep('Evaluating PayGrid Core...');
+      setThinkingLogs(prev => [...prev, '⚠️ Evaluated PayGrid Core: Match Score 60% (Lacks behavioral fraud detection engine)']);
+      await delay(2000);
 
-      setLoadingStep('');
+      setLoadingStep('Determining capability gap...');
+      setThinkingLogs(prev => [...prev, '❌ No 100% direct product match found in existing portfolio.']);
+      await delay(1800);
+
+      setLoadingStep('Generating Technical Solution Blueprint...');
+      setThinkingLogs(prev => [...prev, '📄 Generating custom Technical Requirement Blueprint & contacting Solution Director...']);
+      await delay(2000);
+
       setLoading(false);
+      setLoadingStep('');
+      setThinkingLogs([]);
 
       return {
         type: 'OPEN_OUTCOME',
-        message: 'A capability gap is identified. This document is generated as the proposed technology requirement and solution blueprint.',
+        message: 'No existing product matches this capability. A new technical requirement has been identified. Here is a document with proposed technology docs and solution blueprint.',
         docUrl: '/doc.pdf',
         contact: {
-          name: 'Kunal Sharma',
-          role: 'Lead Solutions Architect',
+          name: 'Neha Baglkot',
+          role: 'Director',
           phone: '+91 98765 43210',
-          email: 'kunal.sharma@techbridge.com'
+          email: 'neha.baglkot@techbridge.com'
         }
       };
     }
@@ -168,7 +215,6 @@ export const ChatInterface = () => {
     };
   };
 
-  // Guided Logic
   const handleLocalDemoFlow = (text) => {
     const lower = text.toLowerCase();
     
@@ -176,7 +222,7 @@ export const ChatInterface = () => {
       return {
         type: 'QUESTION',
         message: "Great! Please select the core Banking Domain you are building or searching a product for:",
-        options: ['1. Reconciliation Engine', '2. Payments Processing', '3. Data & Regulatory Reporting']
+        options: ['1. Reconciliation Engine', '2. Payments Processing (Demo)', '3. Data & Regulatory Reporting (Demo)']
       };
     }
 
@@ -184,142 +230,93 @@ export const ChatInterface = () => {
       setRequirements(prev => ({ ...prev, domain: 'Reconciliation Engine' }));
       return {
         type: 'QUESTION',
-        message: 'Q1/3 (Scope): What datasets are you looking to reconcile?',
+        message: 'What datasets are you looking to reconcile?',
         options: ['Front Office vs Back Office', 'Position Matching', 'Ledger vs Bank Statements']
       };
     }
+
     if (lower.includes('front office') || lower.includes('position') || lower.includes('ledger')) {
       setRequirements(prev => ({ ...prev, scope: text }));
       return {
         type: 'QUESTION',
-        message: 'Q2/3 (Ingestion): How will source files/data be ingested into the engine?',
+        message: 'How will source files and data be ingested into the engine?',
         options: ['Daily File Ingestion (CSV/XML)', 'Database Sync', 'Real-time Kafka / Streaming']
       };
     }
+
     if (lower.includes('file') || lower.includes('sync') || lower.includes('kafka')) {
       setRequirements(prev => ({ ...prev, ingestion: text }));
       return {
         type: 'QUESTION',
-        message: 'Q3/3 (Volume): What is your expected daily record processing volume?',
+        message: 'What is your expected daily record processing volume?',
         options: ['Standard (<100k)', 'High Volume (>1 Million)', 'Enterprise Ultra Scale']
       };
     }
+
     if (lower.includes('standard') || lower.includes('high volume') || lower.includes('enterprise ultra')) {
-      setRequirements(prev => ({ ...prev, scale: text }));
+      const finalScale = text;
+      const finalScope = requirements.scope !== 'Pending...' ? requirements.scope : 'Selected Datasets';
+      const finalIngestion = requirements.ingestion !== 'Pending...' ? requirements.ingestion : 'Configured Ingestion Source';
+
+      setRequirements(prev => ({ ...prev, scale: finalScale }));
       return {
         type: 'RECOMMENDATION',
-        message: 'Based on your 3-point configuration, OmniRecon Core is the highest rated product match.',
+        message: `Analysis Complete! Based on your target scope (${finalScope}), ingestion pipeline (${finalIngestion}), and scale (${finalScale}), Pair DB is identified as the optimal product match.`,
         recommendation: {
-          product: 'OmniRecon Core Platform',
-          fitScore: 96,
+          product: 'Pair DB',
+          fitScore: 98,
           reasons: [
-            'Built specifically for high-volume Front Office vs Back Office reconciliation',
-            'Supports automated batch & Kafka ingestion with dynamic rule matching',
-            'Integrated break investigation, exception routing & complete audit trail'
+            `Tailored specifically for ${finalScope} automated reconciliation rules.`,
+            `Direct compatibility with ${finalIngestion} data architecture with active exception handling.`,
+            `Optimized processing engine designed to sustain ${finalScale} record throughput without latency.`
           ]
         }
       };
     }
 
     if (lower.includes('payments') || lower.includes('2.')) {
-      setRequirements(prev => ({ ...prev, domain: 'Payments Processing' }));
+      setRequirements(prev => ({ ...prev, domain: 'Payments Processing (Demo)' }));
       return {
         type: 'QUESTION',
-        message: 'Q1/3 (Type): What type of payment processing capability do you need?',
-        options: ['Cross-Border / SWIFT Transfers', 'Real-time Instant Payments', 'Bulk Domestic Clearing']
-      };
-    }
-    if (lower.includes('swift') || lower.includes('instant') || lower.includes('clearing')) {
-      setRequirements(prev => ({ ...prev, scope: text }));
-      return {
-        type: 'QUESTION',
-        message: 'Q2/3 (Protocol): Which message format or standard does your system support?',
-        options: ['ISO 20022 XML Standard', 'Legacy MT Messaging', 'RESTful JSON APIs']
-      };
-    }
-    if (lower.includes('iso') || lower.includes('legacy') || lower.includes('restful')) {
-      setRequirements(prev => ({ ...prev, ingestion: text }));
-      return {
-        type: 'QUESTION',
-        message: 'Q3/3 (Latency): What is your requirement for sanctions screening & latency?',
-        options: ['Sub-Second Realtime Screening', 'Batch Processing with Sanctions']
-      };
-    }
-    if (lower.includes('sub-second') || lower.includes('batch processing')) {
-      setRequirements(prev => ({ ...prev, scale: text }));
-      return {
-        type: 'RECOMMENDATION',
-        message: 'Based on your parameters, PayBridge Gateway is the optimal enterprise engine.',
-        recommendation: {
-          product: 'PayBridge Gateway Core',
-          fitScore: 98,
-          reasons: [
-            'Full support for ISO 20022 and SWIFT messaging standards',
-            'Ultra-low latency sub-second real-time sanctions and fraud screening',
-            'High reliability with zero-downtime multi-region failover'
-          ]
-        }
+        message: '[Demo Mode] Payments domain selected. For full walkthrough, please switch to Reconciliation Flow or Open Mode.',
+        options: ['1. Reconciliation Engine']
       };
     }
 
     if (lower.includes('data') || lower.includes('3.')) {
-      setRequirements(prev => ({ ...prev, domain: 'Data & Reporting' }));
+      setRequirements(prev => ({ ...prev, domain: 'Data & Reporting (Demo)' }));
       return {
         type: 'QUESTION',
-        message: 'Q1/3 (Objective): What is the main objective of this data pipeline?',
-        options: ['Regulatory Compliance (Basel/MiFID)', 'Executive BI Dashboards', 'Risk Analytics']
-      };
-    }
-    if (lower.includes('compliance') || lower.includes('executive') || lower.includes('risk')) {
-      setRequirements(prev => ({ ...prev, scope: text }));
-      return {
-        type: 'QUESTION',
-        message: 'Q2/3 (Storage): Where is your core transaction data hosted?',
-        options: ['Cloud Data Lakehouse', 'On-Prem SQL Databases', 'Hybrid Data Sources']
-      };
-    }
-    if (lower.includes('cloud') || lower.includes('on-prem') || lower.includes('hybrid')) {
-      setRequirements(prev => ({ ...prev, ingestion: text }));
-      return {
-        type: 'QUESTION',
-        message: 'Q3/3 (Frequency): How frequently should reports and data models refresh?',
-        options: ['End of Day (EOD) Batch', 'Intra-day Hourly Refresh', 'Real-time Event Driven']
-      };
-    }
-    if (lower.includes('end of day') || lower.includes('intra-day') || lower.includes('event driven')) {
-      setRequirements(prev => ({ ...prev, scale: text }));
-      return {
-        type: 'RECOMMENDATION',
-        message: 'DataLens Reporting Hub matches all your specified data compliance criteria.',
-        recommendation: {
-          product: 'DataLens Reporting Hub',
-          fitScore: 94,
-          reasons: [
-            'Out-of-the-box regulatory reporting templates for Basel III & MiFID II',
-            'Seamless integration with Cloud Lakehouses & Hybrid storage architectures',
-            'Automated lineage tracking and encrypted audit log compliance'
-          ]
-        }
+        message: '[Demo Mode] Data Reporting domain selected. For full walkthrough, please switch to Reconciliation Flow or Open Mode.',
+        options: ['1. Reconciliation Engine']
       };
     }
 
     return {
       type: 'QUESTION',
-      message: 'Please choose one of the available options or specify your requirement.',
-      options: ['Reconciliation Engine', 'Payments Processing', 'Data & Reporting']
+      message: 'Please select Reconciliation Engine to proceed with configured decision flow.',
+      options: ['1. Reconciliation Engine']
     };
   };
 
   const handleSend = async (textToSend) => {
     const text = textToSend || inputMessage;
-    if (!text.trim() || loading) return;
+    const currentFile = selectedFile;
 
-    const userMsg = { id: Date.now(), sender: 'USER', text };
+    if ((!text.trim() && !currentFile) || loading) return;
+
+    const userDisplayText = currentFile 
+      ? `${text ? text + '\n' : ''}📎 Attached: ${currentFile.name}`
+      : text;
+
+    const userMsg = { id: Date.now(), sender: 'USER', text: userDisplayText };
     setMessages((prev) => [...prev, userMsg]);
+
     if (!textToSend) setInputMessage('');
+    removeSelectedFile();
 
     if (chatMode === 'open') {
-      const responsePayload = await handleOpenEndedFlow(text);
+      const responsePayload = await handleOpenEndedFlow(text, currentFile);
       const aiMsg = {
         id: Date.now() + 1,
         sender: 'AI',
@@ -410,17 +407,7 @@ export const ChatInterface = () => {
                 className="w-full text-left p-2.5 bg-slate-900/40 hover:bg-indigo-600/10 border border-slate-800/80 hover:border-indigo-500/30 rounded-lg text-xs text-slate-300 transition-all flex items-center gap-2 group"
               >
                 <FileText className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform" />
-                <span>Test Reconciliation Flow</span>
-              </button>
-              <button 
-                onClick={() => {
-                  if(chatMode === 'open') handleSwitchMode('guided');
-                  handleSend("2. Payments Processing");
-                }}
-                className="w-full text-left p-2.5 bg-slate-900/40 hover:bg-indigo-600/10 border border-slate-800/80 hover:border-indigo-500/30 rounded-lg text-xs text-slate-300 transition-all flex items-center gap-2 group"
-              >
-                <FileText className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform" />
-                <span>Test Payments Flow</span>
+                <span>Start Reconciliation Flow</span>
               </button>
             </div>
           </div>
@@ -459,10 +446,6 @@ export const ChatInterface = () => {
                 Open Minded Conversation
               </button>
             </div>
-
-            <div className="hidden md:flex items-center gap-2 px-2.5 py-1 rounded-md bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-medium">
-              <Shield className="w-3 h-3" /> Guardrails Active
-            </div>
           </div>
         </header>
 
@@ -486,9 +469,10 @@ export const ChatInterface = () => {
               </div>
 
               <div className="space-y-3">
-                {msg.text && (
+                {/* Standard text bubble */}
+                {msg.text && msg.type !== 'OPEN_OUTCOME' && (
                   <div
-                    className={`p-4 rounded-2xl text-sm leading-relaxed ${
+                    className={`p-4 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
                       msg.sender === 'USER'
                         ? 'bg-indigo-600 text-white rounded-tr-none'
                         : 'bg-slate-900 border border-slate-800/90 text-slate-200 rounded-tl-none shadow-lg'
@@ -519,10 +503,10 @@ export const ChatInterface = () => {
                   <RecommendationCard recommendation={msg.recommendation} />
                 )}
 
-                {/* OPEN_OUTCOME Card with Inline Trigger */}
+                {/* OPEN_OUTCOME Card */}
                 {msg.type === 'OPEN_OUTCOME' && (
                   <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-slate-200 space-y-4 shadow-2xl">
-                    <p className="text-sm font-medium text-amber-400">
+                    <p className="text-sm font-medium text-amber-400 leading-relaxed">
                       ⚠️ {msg.text}
                     </p>
 
@@ -573,17 +557,49 @@ export const ChatInterface = () => {
             </div>
           ))}
 
+          {/* REALTIME VISUAL AI THINKING STREAM */}
           {loading && (
-            <div className="flex gap-2 items-center text-slate-400 text-xs bg-slate-900/80 w-fit px-4 py-2.5 rounded-xl border border-slate-800">
-              <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-400" />
-              <span>{loadingStep || 'Evaluating product parameters...'}</span>
+            <div className="bg-slate-900/90 border border-indigo-500/30 rounded-2xl p-4 space-y-3 max-w-2xl shadow-xl animate-in fade-in duration-300">
+              <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold uppercase tracking-wider">
+                <BrainCircuit className="w-4 h-4 animate-pulse" />
+                <span>AI Reasoning Engine Active</span>
+              </div>
+
+              {thinkingLogs.length > 0 && (
+                <div className="space-y-2 text-xs font-mono bg-slate-950/70 p-3 rounded-xl border border-slate-800">
+                  {thinkingLogs.map((log, index) => (
+                    <div key={index} className="text-slate-300 leading-relaxed flex items-start gap-1.5">
+                      <span>{log}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-2 items-center text-slate-400 text-xs pt-1">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-400" />
+                <span className="font-medium text-slate-200">{loadingStep}</span>
+              </div>
             </div>
           )}
+
           <div ref={chatEndRef} />
         </div>
 
-        {/* Bottom Input */}
-        <div className="p-4 border-t border-slate-800/80 bg-slate-950/60 backdrop-blur-md">
+        {/* Bottom Input Area */}
+        <div className="p-4 border-t border-slate-800/80 bg-slate-950/60 backdrop-blur-md space-y-2">
+          {selectedFile && (
+            <div className="max-w-4xl mx-auto flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/30 px-3 py-1.5 rounded-lg text-xs text-indigo-300 w-fit">
+              <FileText className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="font-medium truncate max-w-xs">{selectedFile.name}</span>
+              <button
+                onClick={removeSelectedFile}
+                className="hover:bg-indigo-500/20 rounded p-0.5 text-indigo-400 hover:text-white transition"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -592,19 +608,37 @@ export const ChatInterface = () => {
             className="max-w-4xl mx-auto relative flex items-center"
           >
             <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept=".pdf,.doc,.docx,.txt"
+              className="hidden"
+            />
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="absolute left-2 p-2 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-lg transition-all"
+              title="Attach requirement document (.pdf, .doc, .txt)"
+            >
+              <Paperclip className="w-4 h-4" />
+            </button>
+
+            <input
               type="text"
               value={inputMessage}
               onChange={(e) => setInputMessage(e.target.value)}
               placeholder={
                 chatMode === 'guided'
-                  ? 'Select an option above or type your requirement...'
-                  : 'Describe your custom requirement (e.g. Real-time scam intervention)...'
+                  ? 'Select Reconciliation Engine or type requirement...'
+                  : 'Describe requirement or upload document...'
               }
-              className="w-full bg-slate-900 text-slate-100 placeholder-slate-500 text-sm rounded-xl pl-4 pr-12 py-3 border border-slate-800 focus:outline-none focus:border-indigo-500/80 transition-all shadow-inner"
+              className="w-full bg-slate-900 text-slate-100 placeholder-slate-500 text-sm rounded-xl pl-10 pr-12 py-3 border border-slate-800 focus:outline-none focus:border-indigo-500/80 transition-all shadow-inner"
             />
+
             <button
               type="submit"
-              disabled={!inputMessage.trim() || loading}
+              disabled={(!inputMessage.trim() && !selectedFile) || loading}
               className="absolute right-2 p-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-600 text-white rounded-lg transition-all"
             >
               <Send className="w-4 h-4" />
@@ -613,7 +647,7 @@ export const ChatInterface = () => {
         </div>
       </main>
 
-      {/* PDF IN-APP MODAL PREVIEW */}
+      {/* PDF MODAL */}
       {showPdfModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
