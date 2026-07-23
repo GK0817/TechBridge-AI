@@ -1,9 +1,9 @@
 import React from 'react';
-import { ChatInterface } from './components/ChatInterface';
+import { ChatInterface } from './components/ChatInterface'; // Named import use kar rahe hain hum
 
 function App() {
   return (
-    <div className="w-full h-screen bg-[#0b0f19]">
+    <div className="min-h-screen bg-[#0b0f19]">
       <ChatInterface />
     </div>
   );
