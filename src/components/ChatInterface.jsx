@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Layers, Plus, FileText, CheckCircle2, Compass, ExternalLink, X, Paperclip, BrainCircuit, RefreshCw, Mail, UserCheck, ShieldAlert, LogOut } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Layers, Plus, FileText, CheckCircle2, Compass, ExternalLink, X, Paperclip, BrainCircuit, RefreshCw, Mail, ShieldAlert, LogOut, Settings, ShieldCheck, Sliders, Cpu, ArrowRight } from 'lucide-react';
 import { RecommendationCard } from './RecommendationCard';
+import { TechnicalDocumentView } from './TechnicalDocumentView';
 import { sendChatMessage } from '../services/api';
 
 export const ChatInterface = ({ userRole, onLogout }) => {
   const [chatMode, setChatMode] = useState('guided'); // 'guided' | 'open'
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   
   // Chat & Session States
   const [messages, setMessages] = useState([
@@ -22,15 +24,13 @@ export const ChatInterface = ({ userRole, onLogout }) => {
   const [loadingStep, setLoadingStep] = useState('');
   const [thinkingLogs, setThinkingLogs] = useState([]);
   
-  // Session ID State: Guided = Session-1, Discovery = Session-2
-  const [sessionId, setSessionId] = useState('Session-1');
-  
   // Director Inbox Tickets State
   const [directorInbox, setDirectorInbox] = useState([]);
 
-  // PDF Modal State
-  const [showPdfModal, setShowPdfModal] = useState(false);
-  const [activePdfUrl, setActivePdfModalUrl] = useState('/doc.pdf');
+  // Director Document Generation States
+  const [generatingDocId, setGeneratingDocId] = useState(null);
+  const [generationLogs, setGenerationLogs] = useState([]);
+  const [showTechnicalDocModal, setShowTechnicalDocModal] = useState(false);
 
   // File Input Ref
   const fileInputRef = useRef(null);
@@ -42,7 +42,6 @@ export const ChatInterface = ({ userRole, onLogout }) => {
   const [requirements, setRequirements] = useState({
     domain: 'Awaiting Selection...',
     scope: 'Pending...',
-    ingestion: 'Pending...',
     scale: 'Pending...'
   });
 
@@ -52,7 +51,6 @@ export const ChatInterface = ({ userRole, onLogout }) => {
   useEffect(() => {
     const channel = new BroadcastChannel('techbridge_tickets_channel');
     
-    // Listen for incoming tickets from other tab
     channel.onmessage = (event) => {
       if (event.data && event.data.type === 'NEW_TICKET') {
         setDirectorInbox((prev) => [event.data.ticket, ...prev]);
@@ -84,6 +82,41 @@ export const ChatInterface = ({ userRole, onLogout }) => {
     }
   };
 
+  // HANDLER TO SUBMIT GUIDED TICKET TO DIRECTOR PORTAL
+  const handleSendGuidedTicketToDirector = (productName) => {
+    const newTicket = {
+      id: 'REQ-' + Math.floor(1000 + Math.random() * 9000),
+      businessUser: 'Rahul Sharma (Senior Business Analyst)',
+      sessionId: 'Session-Guided',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', Today',
+      requirementDomain: `${requirements.domain || 'Reconciliation Engine'} Configuration`,
+      summary: `Guided Flow Selection: ${requirements.domain || 'Reconciliation Engine'}, Scope: ${requirements.scope}, Scale: ${requirements.scale}. Recommended: ${productName}. Ticket raised for custom enterprise architecture validation.`,
+      isGenerated: false,
+      isRead: false,
+      isGuidedTicket: true // Guided ticket flag
+    };
+
+    setDirectorInbox(prev => [newTicket, ...prev]);
+
+    try {
+      const channel = new BroadcastChannel('techbridge_tickets_channel');
+      channel.postMessage({ type: 'NEW_TICKET', ticket: newTicket });
+      channel.close();
+    } catch (err) {
+      console.log('BroadcastChannel error:', err);
+    }
+
+    setMessages(prev => [
+      ...prev,
+      {
+        id: Date.now(),
+        sender: 'AI',
+        text: `✅ Ticket ${newTicket.id} successfully dispatched to the Technical Director!`,
+        type: 'TEXT'
+      }
+    ]);
+  };
+
   const handleSwitchMode = (mode) => {
     setChatMode(mode);
     setOpenStep(0);
@@ -91,8 +124,6 @@ export const ChatInterface = ({ userRole, onLogout }) => {
     removeSelectedFile();
 
     if (mode === 'open') {
-      setSessionId('Session-2');
-
       setMessages([
         {
           id: Date.now(),
@@ -104,13 +135,9 @@ export const ChatInterface = ({ userRole, onLogout }) => {
       setRequirements({
         domain: 'Custom Requirement Discovery',
         scope: 'Interactive Analysis...',
-        ingestion: 'Conversational / Document Ingestion',
         scale: 'Dynamic Evaluation'
       });
     } else {
-      setSessionId('Session-1');
-      setDirectorInbox([]);
-
       setMessages([
         {
           id: Date.now(),
@@ -123,7 +150,6 @@ export const ChatInterface = ({ userRole, onLogout }) => {
       setRequirements({
         domain: 'Awaiting Selection...',
         scope: 'Pending...',
-        ingestion: 'Pending...',
         scale: 'Pending...'
       });
     }
@@ -145,8 +171,7 @@ export const ChatInterface = ({ userRole, onLogout }) => {
         setRequirements(prev => ({
           ...prev,
           domain: 'Real-Time Scam Intervention',
-          scope: file ? `Parsed from ${file.name}` : 'Pre-Execution Detection',
-          ingestion: file ? `Document (${file.name})` : 'Real-time Stream'
+          scope: file ? `Parsed from ${file.name}` : 'Pre-Execution Detection'
         }));
 
         return {
@@ -185,29 +210,27 @@ export const ChatInterface = ({ userRole, onLogout }) => {
       setThinkingLogs(prev => [...prev, '❌ No 100% direct product match found in existing portfolio.']);
       await delay(1500);
 
-      setLoadingStep('Generating Technical Solution Blueprint...');
-      setThinkingLogs(prev => [...prev, '📄 Generating custom Technical Requirement Blueprint & contacting Solution Director...']);
-      await delay(1800);
+      setLoadingStep('Dispatching Requirement Summary to Solution Director...');
+      await delay(1200);
 
       setLoading(false);
       setLoadingStep('');
       setThinkingLogs([]);
 
-      // Create new ticket
       const newTicket = {
         id: 'REQ-' + Math.floor(1000 + Math.random() * 9000),
         businessUser: 'Rahul Sharma (Senior Business Analyst)',
-        sessionId: sessionId,
+        sessionId: 'Session-Discovery',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', Today',
         requirementDomain: requirements.domain || 'Real-Time Scam Intervention',
-        summary: 'Pre-execution payment hold with behavioral analytics & real-time fraud intervention rules.',
-        pdfUrl: '/doc.pdf',
-        isRead: false
+        summary: 'Pre-execution payment hold with behavioral analytics & real-time fraud intervention rules based on user dialogue.',
+        isGenerated: false,
+        isRead: false,
+        isGuidedTicket: false
       };
 
       setDirectorInbox(prev => [newTicket, ...prev]);
 
-      // Broadcast to other open tabs (Director Portal tab)
       try {
         const channel = new BroadcastChannel('techbridge_tickets_channel');
         channel.postMessage({ type: 'NEW_TICKET', ticket: newTicket });
@@ -218,7 +241,7 @@ export const ChatInterface = ({ userRole, onLogout }) => {
 
       return {
         type: 'OPEN_OUTCOME',
-        message: 'No existing product matches this capability. A new technical requirement ticket and solution blueprint have been generated and dispatched to the Engineering & Solution Director.',
+        message: 'No existing product matches this capability. A requirement ticket has been submitted to the Technical Director to generate a detailed engineering blueprint.',
         contact: {
           name: 'Neha Baglkot',
           role: 'Director',
@@ -235,49 +258,26 @@ export const ChatInterface = ({ userRole, onLogout }) => {
   };
 
   const handleLocalDemoFlow = (text) => {
-    const lower = text.toLowerCase();
+    const lower = text.toLowerCase().trim();
     
-    if (lower.includes("good") || lower.includes("ready") || lower.includes("hi") || lower.includes("hello")) {
-      return {
-        type: 'QUESTION',
-        message: "Great! Please select the core Banking Domain you are building or searching a product for:",
-        options: ['1. Reconciliation Engine', '2. Payments Processing (Demo)', '3. Data & Regulatory Reporting (Demo)']
-      };
-    }
+    // STEP 3 Check FIRST: High Volume / Scale Selection
+    if (
+      lower.includes('high volume') || 
+      lower.includes('1 million') || 
+      lower.includes('million') || 
+      lower.includes('standard') || 
+      lower.includes('100k') || 
+      lower.includes('enterprise ultra') || 
+      lower.includes('billion')
+    ) {
+      const selectedScale = (lower.includes('million') || lower.includes('high volume')) 
+        ? 'High Volume (>1 Million)' 
+        : text;
 
-    if (lower.includes('reconciliation') || lower.includes('1.')) {
-      setRequirements(prev => ({ ...prev, domain: 'Reconciliation Engine' }));
-      return {
-        type: 'QUESTION',
-        message: 'What datasets are you looking to reconcile?',
-        options: ['Front Office vs Back Office', 'Position Matching', 'Ledger vs Bank Statements']
-      };
-    }
+      const finalScope = requirements.scope !== 'Pending...' ? requirements.scope : 'Front Office vs Back Office';
 
-    if (lower.includes('front office') || lower.includes('position') || lower.includes('ledger')) {
-      setRequirements(prev => ({ ...prev, scope: text }));
-      return {
-        type: 'QUESTION',
-        message: 'How will source files and data be ingested into the engine?',
-        options: ['Daily File Ingestion (CSV/XML)', 'Database Sync', 'Real-time Kafka / Streaming']
-      };
-    }
+      setRequirements(prev => ({ ...prev, scale: selectedScale }));
 
-    if (lower.includes('file') || lower.includes('sync') || lower.includes('kafka')) {
-      setRequirements(prev => ({ ...prev, ingestion: text }));
-      return {
-        type: 'QUESTION',
-        message: 'What is your expected daily record processing volume?',
-        options: ['Standard (<100k)', 'High Volume (>1 Million)', 'Enterprise Ultra Scale (>1 Billion)']
-      };
-    }
-
-    if (lower.includes('standard') || lower.includes('high volume') || lower.includes('enterprise ultra') || lower.includes('billion')) {
-      const finalScale = text;
-      const finalScope = requirements.scope !== 'Pending...' ? requirements.scope : 'Selected Datasets';
-      const finalIngestion = requirements.ingestion !== 'Pending...' ? requirements.ingestion : 'Configured Ingestion Source';
-
-      setRequirements(prev => ({ ...prev, scale: finalScale }));
       return {
         type: 'RECOMMENDATION',
         message: `Based on your requirements, I recommend the Pair Enterprise Reconciliation Platform...`,
@@ -286,10 +286,38 @@ export const ChatInterface = ({ userRole, onLogout }) => {
           fitScore: 98,
           reasons: [
             `Engineered specifically for high-throughput multi-source reconciliation (${finalScope}).`,
-            `Real-time automated exception matching and ledger mapping for ${finalIngestion}.`,
-            `Sub-second query response with full audit trail compliance designed for ${finalScale}.`
+            `Real-time automated exception matching and ledger mapping.`,
+            `Sub-second query response with full audit trail compliance configured for ${selectedScale}.`
           ]
         }
+      };
+    }
+
+    // STEP 2 Check: Dataset Scope Selection
+    if (lower.includes('front office') || lower.includes('position') || lower.includes('ledger')) {
+      setRequirements(prev => ({ ...prev, scope: text }));
+      return {
+        type: 'QUESTION',
+        message: 'What is your expected daily record processing volume?',
+        options: ['High Volume (>1 Million)', 'Standard (<100k)', 'Enterprise Ultra Scale (>1 Billion)']
+      };
+    }
+
+    // STEP 1 Check: Domain Selection
+    if (text === '1. Reconciliation Engine' || lower === 'reconciliation engine' || lower === 'reconciliation') {
+      setRequirements(prev => ({ ...prev, domain: 'Reconciliation Engine' }));
+      return {
+        type: 'QUESTION',
+        message: 'What datasets are you looking to reconcile?',
+        options: ['Front Office vs Back Office', 'Position Matching', 'Ledger vs Bank Statements']
+      };
+    }
+
+    if (lower.includes("good") || lower.includes("ready") || lower.includes("hi") || lower.includes("hello")) {
+      return {
+        type: 'QUESTION',
+        message: "Great! Please select the core Banking Domain you are building or searching a product for:",
+        options: ['1. Reconciliation Engine', '2. Payments Processing (Demo)', '3. Data & Regulatory Reporting (Demo)']
       };
     }
 
@@ -333,15 +361,16 @@ export const ChatInterface = ({ userRole, onLogout }) => {
       const isFinalScaleStep = text.toLowerCase().includes('billion') || 
                                text.toLowerCase().includes('100k') || 
                                text.toLowerCase().includes('million') || 
+                               text.toLowerCase().includes('high volume') ||
                                text.toLowerCase().includes('enterprise ultra');
 
       if (isFinalScaleStep) {
         setLoadingStep('Scanning Banking Product Catalog...');
-        setThinkingLogs(prev => [...prev, '🧠 Analyzing Reconciliation Criteria: [Ultra High Volume, Multi-Source Ingestion]']);
+        setThinkingLogs(prev => [...prev, '🧠 Analyzing Reconciliation Criteria: [High Volume (>1 Million) Throughput, Multi-Source Ingestion]']);
         await delay(1200);
 
         setLoadingStep('Evaluating DUCO Matching Engine...');
-        setThinkingLogs(prev => [...prev, '⚠️ Evaluated DUCO Engine == 50% match (Lower performance on enterprise ultra-scale)']);
+        setThinkingLogs(prev => [...prev, '⚠️ Evaluated DUCO Engine == 50% match (Lower performance on enterprise high volume throughput)']);
         await delay(1500);
 
         setLoadingStep('Evaluating TLM Reconciliation Engine...');
@@ -349,7 +378,7 @@ export const ChatInterface = ({ userRole, onLogout }) => {
         await delay(1500);
 
         setLoadingStep('Evaluating Pair Platform...');
-        setThinkingLogs(prev => [...prev, '🎯 Pair Enterprise Platform == 98% match (Optimal fit for enterprise throughput)']);
+        setThinkingLogs(prev => [...prev, '🎯 Pair Enterprise Platform == 98% match (Optimal fit for high volume throughput)']);
         await delay(1200);
 
         setLoadingStep('Generating Final Product Recommendation...');
@@ -359,7 +388,7 @@ export const ChatInterface = ({ userRole, onLogout }) => {
         await delay(800);
       }
 
-      const backendResponse = await sendChatMessage(sessionId, text);
+      const backendResponse = await sendChatMessage('Session-1', text);
       setLoading(false);
       setLoadingStep('');
       setThinkingLogs([]);
@@ -369,28 +398,31 @@ export const ChatInterface = ({ userRole, onLogout }) => {
         const currentNode = backendResponse.currentNode || '';
         const options = backendResponse.options || [];
 
-        if (text.includes('1.') || text.toLowerCase().includes('reconciliation')) {
+        if (text === '1. Reconciliation Engine' || text.toLowerCase().includes('reconciliation')) {
           setRequirements(prev => ({ ...prev, domain: 'Reconciliation Engine' }));
         } else if (requirements.domain !== 'Awaiting Selection...' && requirements.scope === 'Pending...') {
           setRequirements(prev => ({ ...prev, scope: text }));
-        } else if (requirements.scope !== 'Pending...' && requirements.ingestion === 'Pending...') {
-          setRequirements(prev => ({ ...prev, ingestion: text }));
-        } else if (requirements.ingestion !== 'Pending...' && requirements.scale === 'Pending...') {
-          setRequirements(prev => ({ ...prev, scale: text }));
+        } else if (requirements.scope !== 'Pending...' && requirements.scale === 'Pending...') {
+          const selectedScale = (text.toLowerCase().includes('million') || text.toLowerCase().includes('high volume')) 
+            ? 'High Volume (>1 Million)' 
+            : text;
+          setRequirements(prev => ({ ...prev, scale: selectedScale }));
         }
 
-        if (currentNode === 'recommendation' || backendResponse.type === 'RECOMMENDATION' || botReply?.includes('recommend') || botReply?.includes('Pair DB') || botReply?.includes('Pair')) {
-          const recObj = backendResponse.recommendation || {
+        if (currentNode === 'recommendation' || backendResponse.type === 'RECOMMENDATION' || isFinalScaleStep || botReply?.includes('recommend') || botReply?.includes('Pair DB') || botReply?.includes('Pair')) {
+          const selectedScale = (text.toLowerCase().includes('million') || text.toLowerCase().includes('high volume')) 
+            ? 'High Volume (>1 Million)' 
+            : text;
+
+          const recObj = {
             product: 'Pair Enterprise Platform',
             fitScore: 98,
             reasons: [
-              'Engineered specifically for high-throughput multi-source reconciliation.',
+              `Engineered specifically for high-throughput multi-source reconciliation (${requirements.scope !== 'Pending...' ? requirements.scope : 'Front Office vs Back Office'}).`,
               'Real-time automated exception matching and ledger mapping.',
-              'Sub-second query response with full audit trail compliance.'
+              `Sub-second query response with full audit trail compliance configured for ${selectedScale}.`
             ]
           };
-
-          recObj.product = 'Pair Enterprise Platform';
 
           const aiMsg = {
             id: Date.now() + 1,
@@ -425,13 +457,39 @@ export const ChatInterface = ({ userRole, onLogout }) => {
     }
   };
 
-  const handleViewBlueprint = (ticket) => {
-    setActivePdfModalUrl(ticket.pdfUrl);
-    setShowPdfModal(true);
+  // HANDLER FOR DIRECTOR GENERATING TECHNICAL DOCUMENT
+  const handleGenerateTechnicalDoc = async (ticketId) => {
+    setGeneratingDocId(ticketId);
+    setGenerationLogs([]);
+
+    const pushLog = (log) => setGenerationLogs(prev => [...prev, log]);
+
+    pushLog("🚀 Instructing TechBridge AI to compile full Technical Document...");
+    await delay(1000);
+
+    pushLog("📋 Parsing Conversation Transcript & Decision Flow Requirements...");
+    await delay(1200);
+
+    pushLog("📌 Generating Section 1: Executive Summary & Recommendation Strategy...");
+    await delay(1000);
+
+    pushLog("⚡ Generating Section 5 & 6: Functional (FR-01 to FR-08) & Non-Functional SLAs...");
+    await delay(1200);
+
+    pushLog("🏗️ Generating Section 7 & 8: Capability Gap Analysis & Reuse-vs-Build Architecture...");
+    await delay(1200);
+
+    pushLog("🔌 Generating Section 10: JSON API Assessment Contract...");
+    await delay(1000);
+
+    pushLog("✅ Technical Document Generation Complete! Ready for Director Review.");
+    await delay(800);
 
     setDirectorInbox(prev =>
-      prev.map(t => t.id === ticket.id ? { ...t, isRead: true } : t)
+      prev.map(t => t.id === ticketId ? { ...t, isGenerated: true, isRead: true } : t)
     );
+    setGeneratingDocId(null);
+    setGenerationLogs([]);
   };
 
   const unreadCount = directorInbox.filter(t => !t.isRead).length;
@@ -439,7 +497,7 @@ export const ChatInterface = ({ userRole, onLogout }) => {
   return (
     <div className="flex h-screen bg-[#0b0f19] text-slate-100 overflow-hidden">
       
-      {/* 1. LEFT SIDEBAR (Only in Business Analyst View) */}
+      {/* 1. LEFT SIDEBAR */}
       {userRole === 'business' && (
         <aside className="w-80 border-r border-slate-800/80 bg-slate-950/60 flex flex-col hidden lg:flex">
           <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
@@ -473,36 +531,29 @@ export const ChatInterface = ({ userRole, onLogout }) => {
                   <span className="font-medium text-slate-200 text-right truncate max-w-[140px]">{requirements.scope}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-400">Ingestion</span>
-                  <span className="font-medium text-slate-200 text-right truncate max-w-[140px]">{requirements.ingestion}</span>
-                </div>
-                <div className="flex justify-between items-center">
                   <span className="text-slate-400">Scale</span>
                   <span className="font-medium text-slate-200 text-right truncate max-w-[140px]">{requirements.scale}</span>
                 </div>
               </div>
             </div>
-
-            <div>
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-                Fast Demo Trigger
-              </h3>
-              <div className="space-y-1.5">
-                <button 
-                  onClick={() => {
-                    if(chatMode === 'open') handleSwitchMode('guided');
-                    handleSend("1. Reconciliation Engine");
-                  }}
-                  className="w-full text-left p-2.5 bg-slate-900/40 hover:bg-indigo-600/10 border border-slate-800/80 hover:border-indigo-500/30 rounded-lg text-xs text-slate-300 transition-all flex items-center gap-2 group cursor-pointer"
-                >
-                  <FileText className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform" />
-                  <span>Start Reconciliation Flow</span>
-                </button>
-              </div>
-            </div>
           </div>
 
-          <div className="p-3 border-t border-slate-800/80 text-[11px] text-slate-500 text-center">
+          <div className="p-3 border-t border-slate-800/80 bg-slate-950/40">
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-900/60 hover:bg-slate-800/80 border border-slate-800 text-xs text-slate-300 transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Settings className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Enterprise Governance</span>
+              </div>
+              <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono px-1.5 py-0.5 rounded">
+                SOX Ready
+              </span>
+            </button>
+          </div>
+
+          <div className="p-2.5 border-t border-slate-800/60 text-[11px] text-slate-500 text-center">
             Powered by TechBridge Assistant Engine
           </div>
         </aside>
@@ -513,8 +564,8 @@ export const ChatInterface = ({ userRole, onLogout }) => {
         <header className="h-14 border-b border-slate-800/80 bg-slate-950/40 backdrop-blur-md px-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-xs font-medium text-slate-300">
-              {userRole === 'business' ? `Active Session: ${sessionId}` : 'Technical Architecture Portal'}
+            <span className="text-xs font-semibold tracking-wide text-slate-200">
+              {userRole === 'business' ? 'Business Analyst Solution Discovery Portal' : 'Technical Architecture Director Portal'}
             </span>
           </div>
 
@@ -559,10 +610,10 @@ export const ChatInterface = ({ userRole, onLogout }) => {
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
                   <Mail className="w-5 h-5 text-amber-500" /> Technical Architecture Mailbox & Requirement Blueprints
                 </h2>
-                <p className="text-xs text-slate-400 mt-1">Review custom technical requirements and solution blueprints submitted by business users.</p>
+                <p className="text-xs text-slate-400 mt-1">Review incoming user requirement summaries and instruct Chatbot to generate full Technical Blueprints.</p>
               </div>
               <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 text-xs px-3 py-1 rounded-lg font-mono">
-                {unreadCount} Unread Proposal{unreadCount !== 1 ? 's' : ''}
+                {unreadCount} Unread Ticket{unreadCount !== 1 ? 's' : ''}
               </span>
             </div>
 
@@ -577,7 +628,7 @@ export const ChatInterface = ({ userRole, onLogout }) => {
                   <div key={ticket.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl hover:border-slate-700 transition-all relative overflow-hidden">
                     {!ticket.isRead && (
                       <div className="absolute top-0 right-0 bg-amber-500 text-slate-950 font-bold text-[9px] uppercase px-2 py-0.5 rounded-bl-lg">
-                        New
+                        New Requirement
                       </div>
                     )}
                     <div className="flex items-start justify-between">
@@ -596,20 +647,50 @@ export const ChatInterface = ({ userRole, onLogout }) => {
                         </p>
                       </div>
 
-                      <button
-                        onClick={() => handleViewBlueprint(ticket)}
-                        className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium px-4 py-2.5 rounded-xl transition shadow-md cursor-pointer"
-                      >
-                        <FileText className="w-4 h-4" />
-                        <span>View Technical Blueprint</span>
-                        <ExternalLink className="w-3 h-3 ml-0.5" />
-                      </button>
+                      {/* BUTTON ACTION: HIDE GENERATE BUTTON FOR GUIDED TICKETS */}
+                      {ticket.isGenerated ? (
+                        <button
+                          onClick={() => setShowTechnicalDocModal(true)}
+                          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow-lg cursor-pointer"
+                        >
+                          <FileText className="w-4 h-4" />
+                          <span>View Technical Document</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </button>
+                      ) : (
+                        !ticket.isGuidedTicket && (
+                          <button
+                            onClick={() => handleGenerateTechnicalDoc(ticket.id)}
+                            disabled={generatingDocId === ticket.id}
+                            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 text-white text-xs font-semibold px-4 py-2.5 rounded-xl transition shadow-lg cursor-pointer"
+                          >
+                            <Cpu className={`w-4 h-4 ${generatingDocId === ticket.id ? 'animate-spin' : ''}`} />
+                            <span>{generatingDocId === ticket.id ? 'Generating...' : 'Generate Technical Document'}</span>
+                          </button>
+                        )
+                      )}
                     </div>
 
+                    {/* Summary Section */}
                     <div className="bg-slate-950 border border-slate-800 p-3.5 rounded-xl text-xs text-slate-300 leading-relaxed">
-                      <strong className="text-amber-400 block mb-1">Requirement Summary:</strong>
+                      <strong className="text-amber-400 block mb-1">Requirement Summary (from User & Chatbot Dialogue):</strong>
                       {ticket.summary}
                     </div>
+
+                    {/* Real-time Generation Progress Box */}
+                    {generatingDocId === ticket.id && (
+                      <div className="bg-slate-950/90 border border-indigo-500/30 rounded-xl p-4 space-y-2 font-mono text-xs text-indigo-300 animate-in fade-in duration-300">
+                        <div className="flex items-center gap-2 font-bold text-amber-400 uppercase tracking-wider text-[11px] border-b border-slate-800 pb-2">
+                          <BrainCircuit className="w-4 h-4 animate-pulse text-indigo-400" />
+                          <span>Chatbot Engine: Compiling Technical Document Blueprint</span>
+                        </div>
+                        {generationLogs.map((log, index) => (
+                          <div key={index} className="text-slate-300 leading-relaxed">
+                            {log}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -670,7 +751,25 @@ export const ChatInterface = ({ userRole, onLogout }) => {
                     )}
 
                     {msg.recommendation && (
-                      <RecommendationCard recommendation={msg.recommendation} />
+                      <div className="space-y-3">
+                        <RecommendationCard recommendation={msg.recommendation} />
+                        
+                        {/* GUIDED FLOW TICKET SUBMISSION BUTTON */}
+                        {chatMode === 'guided' && (
+                          <div className="bg-slate-900/90 border border-indigo-500/30 rounded-xl p-3 flex items-center justify-between gap-3 shadow-lg">
+                            <span className="text-xs text-slate-300">
+                              Need technical validation for this recommendation?
+                            </span>
+                            <button
+                              onClick={() => handleSendGuidedTicketToDirector(msg.recommendation.product)}
+                              className="bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold px-3.5 py-2 rounded-lg transition shadow-md flex items-center gap-1.5 shrink-0 cursor-pointer"
+                            >
+                              <Mail className="w-3.5 h-3.5" />
+                              <span>Send Ticket to Director</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     )}
 
                     {msg.type === 'OPEN_OUTCOME' && (
@@ -796,30 +895,55 @@ export const ChatInterface = ({ userRole, onLogout }) => {
         )}
       </main>
 
-      {/* PDF MODAL */}
-      {showPdfModal && (
+      {/* ENTERPRISE GOVERNANCE MODAL */}
+      {showSettingsModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
-            <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950">
-              <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                <FileText className="w-4 h-4 text-indigo-400" /> Technical Requirement Solution Blueprint (PDF)
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-indigo-400" /> Enterprise Governance & Security
               </h3>
               <button
-                onClick={() => setShowPdfModal(false)}
-                className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded-lg transition cursor-pointer"
+                onClick={() => setShowSettingsModal(false)}
+                className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1 rounded-lg transition cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="flex-1 bg-slate-950">
-              <iframe
-                src={activePdfUrl}
-                title="Document Preview"
-                className="w-full h-full border-none"
-              />
+
+            <div className="space-y-3 text-xs">
+              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80 flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-slate-200">Compliance Audit Logging</p>
+                  <p className="text-[11px] text-slate-400">SOC2 & Basel III Traceability Active</p>
+                </div>
+                <ShieldCheck className="w-5 h-5 text-emerald-400" />
+              </div>
+
+              <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80 flex items-center justify-between">
+                <div>
+                  <p className="font-semibold text-slate-200">Data Redaction Policy</p>
+                  <p className="text-[11px] text-slate-400">Auto Masking PII / Account Data</p>
+                </div>
+                <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono px-2 py-0.5 rounded">
+                  ENABLED
+                </span>
+              </div>
             </div>
+
+            <button
+              onClick={() => setShowSettingsModal(false)}
+              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-2 rounded-xl text-xs transition cursor-pointer"
+            >
+              Close Governance Settings
+            </button>
           </div>
         </div>
+      )}
+
+      {/* FULL TECHNICAL BLUEPRINT MODAL */}
+      {showTechnicalDocModal && (
+        <TechnicalDocumentView onClose={() => setShowTechnicalDocModal(false)} />
       )}
 
     </div>
