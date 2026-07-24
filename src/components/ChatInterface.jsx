@@ -1,11 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, Sparkles, Layers, Plus, FileText, CheckCircle2, Compass, ExternalLink, X, Paperclip, BrainCircuit, RefreshCw, Mail, UserCheck, ShieldAlert } from 'lucide-react';
+import { Send, Bot, User, Sparkles, Layers, Plus, FileText, CheckCircle2, Compass, ExternalLink, X, Paperclip, BrainCircuit, RefreshCw, Mail, UserCheck, ShieldAlert, LogOut } from 'lucide-react';
 import { RecommendationCard } from './RecommendationCard';
 import { sendChatMessage } from '../services/api';
 
-export const ChatInterface = () => {
-  // Mode States
-  const [userRole, setUserRole] = useState('business'); // 'business' | 'director'
+export const ChatInterface = ({ userRole, onLogout }) => {
   const [chatMode, setChatMode] = useState('guided'); // 'guided' | 'open'
   
   // Chat & Session States
@@ -23,7 +21,9 @@ export const ChatInterface = () => {
   const [loading, setLoading] = useState(false);
   const [loadingStep, setLoadingStep] = useState('');
   const [thinkingLogs, setThinkingLogs] = useState([]);
-  const [sessionId, setSessionId] = useState('session-' + Math.floor(Math.random() * 1000));
+  
+  // Session ID State: Guided = Session-1, Discovery = Session-2
+  const [sessionId, setSessionId] = useState('Session-1');
   
   // Director Inbox Tickets State
   const [directorInbox, setDirectorInbox] = useState([]);
@@ -48,6 +48,22 @@ export const ChatInterface = () => {
 
   const chatEndRef = useRef(null);
 
+  // BROADCAST CHANNEL FOR REAL-TIME MULTI-TAB COMMUNICATION
+  useEffect(() => {
+    const channel = new BroadcastChannel('techbridge_tickets_channel');
+    
+    // Listen for incoming tickets from other tab
+    channel.onmessage = (event) => {
+      if (event.data && event.data.type === 'NEW_TICKET') {
+        setDirectorInbox((prev) => [event.data.ticket, ...prev]);
+      }
+    };
+
+    return () => {
+      channel.close();
+    };
+  }, []);
+
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading, loadingStep, thinkingLogs]);
@@ -70,12 +86,13 @@ export const ChatInterface = () => {
 
   const handleSwitchMode = (mode) => {
     setChatMode(mode);
-    setSessionId('session-' + Math.floor(Math.random() * 1000));
     setOpenStep(0);
     setThinkingLogs([]);
     removeSelectedFile();
 
     if (mode === 'open') {
+      setSessionId('Session-2');
+
       setMessages([
         {
           id: Date.now(),
@@ -91,6 +108,9 @@ export const ChatInterface = () => {
         scale: 'Dynamic Evaluation'
       });
     } else {
+      setSessionId('Session-1');
+      setDirectorInbox([]);
+
       setMessages([
         {
           id: Date.now(),
@@ -153,12 +173,12 @@ export const ChatInterface = () => {
       setThinkingLogs(prev => [...prev, '🔍 Querying product catalog for matching capabilities...']);
       await delay(1500);
 
-      setLoadingStep('Evaluating DUCO Engine...');
-      setThinkingLogs(prev => [...prev, '⚠️ Evaluated DUCO Engine == 50% match (Lacks real-time stream pre-holding capabilities)']);
+      setLoadingStep('Evaluating BioGuard Sentinel Engine...');
+      setThinkingLogs(prev => [...prev, '⚠️ Evaluated BioGuard Sentinel Engine == 45% match (Lacks sub-second behavioral fraud intervention)']);
       await delay(1800);
 
-      setLoadingStep('Evaluating TLM Platform...');
-      setThinkingLogs(prev => [...prev, '⚠️ Evaluated TLM Platform == 68% match (Lacks sub-second behavioral fraud intervention)']);
+      setLoadingStep('Evaluating Aegis Risk Core...');
+      setThinkingLogs(prev => [...prev, '⚠️ Evaluated Aegis Risk Core == 62% match (Lacks real-time streaming pre-holding hooks)']);
       await delay(1800);
 
       setLoadingStep('Determining capability gap...');
@@ -173,7 +193,7 @@ export const ChatInterface = () => {
       setLoadingStep('');
       setThinkingLogs([]);
 
-      // Create Ticket for Director Portal
+      // Create new ticket
       const newTicket = {
         id: 'REQ-' + Math.floor(1000 + Math.random() * 9000),
         businessUser: 'Rahul Sharma (Senior Business Analyst)',
@@ -181,10 +201,20 @@ export const ChatInterface = () => {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', Today',
         requirementDomain: requirements.domain || 'Real-Time Scam Intervention',
         summary: 'Pre-execution payment hold with behavioral analytics & real-time fraud intervention rules.',
-        pdfUrl: '/doc.pdf'
+        pdfUrl: '/doc.pdf',
+        isRead: false
       };
 
       setDirectorInbox(prev => [newTicket, ...prev]);
+
+      // Broadcast to other open tabs (Director Portal tab)
+      try {
+        const channel = new BroadcastChannel('techbridge_tickets_channel');
+        channel.postMessage({ type: 'NEW_TICKET', ticket: newTicket });
+        channel.close();
+      } catch (err) {
+        console.log('BroadcastChannel error:', err);
+      }
 
       return {
         type: 'OPEN_OUTCOME',
@@ -297,7 +327,6 @@ export const ChatInterface = () => {
       };
       setMessages((prev) => [...prev, aiMsg]);
     } else {
-      // GUIDED MODE
       setLoading(true);
       setThinkingLogs([]);
 
@@ -396,116 +425,100 @@ export const ChatInterface = () => {
     }
   };
 
+  const handleViewBlueprint = (ticket) => {
+    setActivePdfModalUrl(ticket.pdfUrl);
+    setShowPdfModal(true);
+
+    setDirectorInbox(prev =>
+      prev.map(t => t.id === ticket.id ? { ...t, isRead: true } : t)
+    );
+  };
+
+  const unreadCount = directorInbox.filter(t => !t.isRead).length;
+
   return (
     <div className="flex h-screen bg-[#0b0f19] text-slate-100 overflow-hidden">
       
-      {/* 1. LEFT SIDEBAR */}
-      <aside className="w-80 border-r border-slate-800/80 bg-slate-950/60 flex flex-col hidden lg:flex">
-        <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-indigo-400" />
-            <span className="font-bold tracking-wide text-sm bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-              TechBridge AI
-            </span>
+      {/* 1. LEFT SIDEBAR (Only in Business Analyst View) */}
+      {userRole === 'business' && (
+        <aside className="w-80 border-r border-slate-800/80 bg-slate-950/60 flex flex-col hidden lg:flex">
+          <div className="p-4 border-b border-slate-800/80 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-indigo-400" />
+              <span className="font-bold tracking-wide text-sm bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+                TechBridge AI
+              </span>
+            </div>
+            <button 
+              onClick={() => handleSwitchMode(chatMode)}
+              className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors cursor-pointer"
+              title="Reset Conversation"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
           </div>
-          <button 
-            onClick={() => handleSwitchMode(chatMode)}
-            className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 transition-colors cursor-pointer"
-            title="Reset Conversation"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-        </div>
 
-        {/* Live Requirement Tracker */}
-        <div className="p-4 space-y-4 flex-1 overflow-y-auto">
-          <div>
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-indigo-400" /> Decision Tree Parameters
-            </h3>
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-2.5 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-400">Target Domain</span>
-                <span className="font-medium text-indigo-300 text-right truncate max-w-[140px]">{requirements.domain}</span>
+          <div className="p-4 space-y-4 flex-1 overflow-y-auto">
+            <div>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-indigo-400" /> Decision Tree Parameters
+              </h3>
+              <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-3 space-y-2.5 text-xs">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Target Domain</span>
+                  <span className="font-medium text-indigo-300 text-right truncate max-w-[140px]">{requirements.domain}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Scope</span>
+                  <span className="font-medium text-slate-200 text-right truncate max-w-[140px]">{requirements.scope}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Ingestion</span>
+                  <span className="font-medium text-slate-200 text-right truncate max-w-[140px]">{requirements.ingestion}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Scale</span>
+                  <span className="font-medium text-slate-200 text-right truncate max-w-[140px]">{requirements.scale}</span>
+                </div>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-400">Scope</span>
-                <span className="font-medium text-slate-200 text-right truncate max-w-[140px]">{requirements.scope}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-400">Ingestion</span>
-                <span className="font-medium text-slate-200 text-right truncate max-w-[140px]">{requirements.ingestion}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-400">Scale</span>
-                <span className="font-medium text-slate-200 text-right truncate max-w-[140px]">{requirements.scale}</span>
+            </div>
+
+            <div>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                Fast Demo Trigger
+              </h3>
+              <div className="space-y-1.5">
+                <button 
+                  onClick={() => {
+                    if(chatMode === 'open') handleSwitchMode('guided');
+                    handleSend("1. Reconciliation Engine");
+                  }}
+                  className="w-full text-left p-2.5 bg-slate-900/40 hover:bg-indigo-600/10 border border-slate-800/80 hover:border-indigo-500/30 rounded-lg text-xs text-slate-300 transition-all flex items-center gap-2 group cursor-pointer"
+                >
+                  <FileText className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform" />
+                  <span>Start Reconciliation Flow</span>
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Quick Demo Triggers */}
-          <div>
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
-              Fast Demo Trigger
-            </h3>
-            <div className="space-y-1.5">
-              <button 
-                onClick={() => {
-                  if(chatMode === 'open') handleSwitchMode('guided');
-                  handleSend("1. Reconciliation Engine");
-                }}
-                className="w-full text-left p-2.5 bg-slate-900/40 hover:bg-indigo-600/10 border border-slate-800/80 hover:border-indigo-500/30 rounded-lg text-xs text-slate-300 transition-all flex items-center gap-2 group cursor-pointer"
-              >
-                <FileText className="w-3.5 h-3.5 text-indigo-400 group-hover:scale-110 transition-transform" />
-                <span>Start Reconciliation Flow</span>
-              </button>
-            </div>
+          <div className="p-3 border-t border-slate-800/80 text-[11px] text-slate-500 text-center">
+            Powered by TechBridge Assistant Engine
           </div>
-        </div>
-
-        <div className="p-3 border-t border-slate-800/80 text-[11px] text-slate-500 text-center">
-          Powered by TechBridge Assistant Engine
-        </div>
-      </aside>
+        </aside>
+      )}
 
       {/* 2. MAIN CONTAINER */}
       <main className="flex-1 flex flex-col h-full relative">
-        {/* HEADER WITH VIEW ROLE SWITCHER */}
         <header className="h-14 border-b border-slate-800/80 bg-slate-950/40 backdrop-blur-md px-6 flex items-center justify-between">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span className="text-xs font-medium text-slate-300">Active Session: {sessionId}</span>
+            <span className="text-xs font-medium text-slate-300">
+              {userRole === 'business' ? `Active Session: ${sessionId}` : 'Technical Architecture Portal'}
+            </span>
           </div>
 
-          {/* RIGHT TOP ROLE SWITCHER */}
           <div className="flex items-center gap-3">
-            <div className="flex bg-slate-900/90 p-1 rounded-xl border border-slate-800 shadow-inner">
-              <button
-                onClick={() => setUserRole('business')}
-                className={`px-3 py-1 text-xs font-medium rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
-                  userRole === 'business' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <UserCheck className="w-3.5 h-3.5" />
-                Business User
-              </button>
-              
-              <button
-                onClick={() => setUserRole('director')}
-                className={`px-3 py-1 text-xs font-medium rounded-lg transition flex items-center gap-1.5 cursor-pointer ${
-                  userRole === 'director' ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Mail className="w-3.5 h-3.5" />
-                Director Portal
-                {directorInbox.length > 0 && (
-                  <span className="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full ml-0.5">
-                    {directorInbox.length}
-                  </span>
-                )}
-              </button>
-            </div>
-
             {userRole === 'business' && (
               <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
                 <button
@@ -527,34 +540,46 @@ export const ChatInterface = () => {
                 </button>
               </div>
             )}
+
+            <button
+              onClick={onLogout}
+              className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+              title="Logout Portal"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </header>
 
-        {/* CONDITIONALLY RENDER DIRECTOR PORTAL OR BUSINESS CHAT */}
         {userRole === 'director' ? (
-          /* ==================== DIRECTOR PORTAL VIEW ==================== */
+          /* DIRECTOR PORTAL VIEW */
           <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#0b0f19]">
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div>
                 <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                  <Mail className="w-5 h-5 text-amber-500" /> Technical Director Mailbox & Requirement Blueprints
+                  <Mail className="w-5 h-5 text-amber-500" /> Technical Architecture Mailbox & Requirement Blueprints
                 </h2>
-                <p className="text-xs text-slate-400 mt-1">Review customized technical requirements generated from business user interactions.</p>
+                <p className="text-xs text-slate-400 mt-1">Review custom technical requirements and solution blueprints submitted by business users.</p>
               </div>
               <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/30 text-xs px-3 py-1 rounded-lg font-mono">
-                {directorInbox.length} New Proposals
+                {unreadCount} Unread Proposal{unreadCount !== 1 ? 's' : ''}
               </span>
             </div>
 
             {directorInbox.length === 0 ? (
               <div className="bg-slate-900/50 border border-slate-800/80 rounded-2xl p-12 text-center text-slate-500 space-y-3">
                 <Mail className="w-10 h-10 mx-auto opacity-30 text-slate-400" />
-                <p className="text-sm">No new requirement tickets received yet.</p>
+                <p className="text-sm">No new requirement tickets received yet in this session.</p>
               </div>
             ) : (
               <div className="space-y-4 max-w-4xl mx-auto">
                 {directorInbox.map((ticket) => (
-                  <div key={ticket.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl hover:border-slate-700 transition-all">
+                  <div key={ticket.id} className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4 shadow-xl hover:border-slate-700 transition-all relative overflow-hidden">
+                    {!ticket.isRead && (
+                      <div className="absolute top-0 right-0 bg-amber-500 text-slate-950 font-bold text-[9px] uppercase px-2 py-0.5 rounded-bl-lg">
+                        New
+                      </div>
+                    )}
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-2">
@@ -567,15 +592,12 @@ export const ChatInterface = () => {
                           {ticket.requirementDomain}
                         </h3>
                         <p className="text-xs text-indigo-300 mt-0.5">
-                          Submitted by: <span className="font-medium text-slate-200">{ticket.businessUser}</span> ({ticket.sessionId})
+                          Submitted by: <span className="font-medium text-slate-200">{ticket.businessUser}</span>
                         </p>
                       </div>
 
                       <button
-                        onClick={() => {
-                          setActivePdfModalUrl(ticket.pdfUrl);
-                          setShowPdfModal(true);
-                        }}
+                        onClick={() => handleViewBlueprint(ticket)}
                         className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium px-4 py-2.5 rounded-xl transition shadow-md cursor-pointer"
                       >
                         <FileText className="w-4 h-4" />
@@ -594,9 +616,8 @@ export const ChatInterface = () => {
             )}
           </div>
         ) : (
-          /* ==================== BUSINESS USER CHAT VIEW ==================== */
+          /* BUSINESS ANALYST CHAT VIEW */
           <div className="flex-1 flex flex-col h-full overflow-hidden">
-            {/* Chat Feed */}
             <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-5">
               {messages.map((msg) => (
                 <div
@@ -616,7 +637,6 @@ export const ChatInterface = () => {
                   </div>
 
                   <div className="space-y-3">
-                    {/* Standard text bubble */}
                     {msg.text && msg.type !== 'OPEN_OUTCOME' && (
                       <div
                         className={`p-4 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
@@ -629,7 +649,6 @@ export const ChatInterface = () => {
                       </div>
                     )}
 
-                    {/* Option Buttons */}
                     {chatMode === 'guided' && msg.options && (
                       <div className="flex flex-wrap gap-2 pt-1">
                         {msg.options.map((option, idx) => {
@@ -650,12 +669,10 @@ export const ChatInterface = () => {
                       </div>
                     )}
 
-                    {/* Recommendation Card */}
                     {msg.recommendation && (
                       <RecommendationCard recommendation={msg.recommendation} />
                     )}
 
-                    {/* OPEN_OUTCOME Card for Business User */}
                     {msg.type === 'OPEN_OUTCOME' && (
                       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 text-slate-200 space-y-4 shadow-2xl">
                         <p className="text-sm font-medium text-amber-400 leading-relaxed flex items-start gap-2">
@@ -689,7 +706,6 @@ export const ChatInterface = () => {
                 </div>
               ))}
 
-              {/* REALTIME VISUAL AI THINKING STREAM */}
               {loading && (
                 <div className="bg-slate-900/90 border border-indigo-500/30 rounded-2xl p-4 space-y-3 max-w-2xl shadow-xl animate-in fade-in duration-300 relative">
                   <div className="flex items-center gap-2 text-indigo-400 text-xs font-semibold uppercase tracking-wider">
@@ -717,7 +733,6 @@ export const ChatInterface = () => {
               <div ref={chatEndRef} />
             </div>
 
-            {/* Bottom Input Area */}
             <div className="p-4 border-t border-slate-800/80 bg-slate-950/60 backdrop-blur-md space-y-2">
               {selectedFile && (
                 <div className="max-w-4xl mx-auto flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/30 px-3 py-1.5 rounded-lg text-xs text-indigo-300 w-fit">
@@ -781,7 +796,7 @@ export const ChatInterface = () => {
         )}
       </main>
 
-      {/* PDF MODAL (ONLY FOR DIRECTOR) */}
+      {/* PDF MODAL */}
       {showPdfModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-in fade-in zoom-in duration-200">
